@@ -4,7 +4,7 @@ import { twMerge } from "tailwind-merge";
 export const getOpenGraphMetadata = (title: string) => {
     return {
         openGraph: {
-            title: `${title} | Morfar`,
+            title: `${title} | Paul`,
         },
     };
 };

@@ -84,7 +84,7 @@ export default async function Login({ searchParams }: LoginProps) {
       <Card className="shadow-md sm:bg-white bg-transparent shadow-none">
         <CardHeader>
           <CardTitle className="flex flex-row gap-1 items-center">
-            Login to Morfar Health
+            Login to Paul Health
             <Sparkles size={20} fill="black" />
           </CardTitle>
           <CardDescription>

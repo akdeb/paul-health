@@ -55,10 +55,10 @@ export default function LandingPage() {
                     <div className="container relative z-10 mx-auto grid max-w-6xl gap-10 px-4 py-14 md:grid-cols-2 md:px-6 md:py-20">
                         <div className="space-y-6">
                             <h1 className="font-[var(--font-inter-tight)] text-4xl leading-tight text-[#1e2f39] md:text-6xl">
-                                Morfar, a voice companion for people living with dementia.
+                                Paul, a voice companion for people living with dementia.
                             </h1>
                             <p className="max-w-xl text-lg text-[#384a53]">
-                                Morfar helps create steady, familiar conversation at home while giving caregivers practical tools to personalize care and respond earlier.
+                                Paul helps create steady, familiar conversation at home while giving caregivers practical tools to personalize care and respond earlier.
                             </p>
                             <div className="flex flex-col gap-3 sm:flex-row">
                                 <Button asChild size="lg" variant="primary">

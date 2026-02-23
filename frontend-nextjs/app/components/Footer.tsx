@@ -31,11 +31,11 @@ export default function Footer() {
                     </Button>
                 </a>
                 <Label className="font-normal text-xs text-[#865042]">
-                    Morfar © {new Date().getFullYear()}
+                    Paul © {new Date().getFullYear()}
                 </Label>
             </div>
             <div className={`${isHome && isMobile ? "hidden" : "flex"} flex-row items-center gap-2 text-xs text-[#865042]`}>
-                <span>Project by Studio Morfar</span>
+                <span>Project by Studio Paul</span>
                 <span>·</span>
                 <span>Copenhagen</span>
             </div>

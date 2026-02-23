@@ -19,7 +19,7 @@ import { Emoji } from "./Emoji";
  *
  */
 
-const HeaderText = "Morfar Health";
+const HeaderText = "Paul Health";
 interface FrontPageProps {
     user?: User;
     allPersonalities: IPersonality[];
