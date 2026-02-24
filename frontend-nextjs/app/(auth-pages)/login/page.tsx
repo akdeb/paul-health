@@ -32,7 +32,7 @@ export default async function Login({ searchParams }: LoginProps) {
       return redirect("/home");
     }
 
-    return redirect("/login?message=Check email to continue sign in process");
+    return redirect("/login?message=Paul is currently in beta. Please contact us to get access.");
   };
 
   return (
