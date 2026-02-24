@@ -1,4 +1,4 @@
-# Morfar 
+# Paul 
 AI assistant for people living with dementia
 
 ## Features
