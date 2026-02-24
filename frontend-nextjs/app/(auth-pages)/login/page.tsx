@@ -1,39 +1,19 @@
-import Link from "next/link";
-import { headers } from "next/headers";
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
 import { SubmitButton } from "./submit-button";
-import { Separator } from "@/components/ui/separator";
 import {
   Card,
   CardContent,
-  CardDescription,
   CardHeader,
   CardTitle,
 } from "@/components/ui/card";
-import { Sparkles } from "lucide-react";
 import { Label } from "@/components/ui/label";
-import GoogleLoginButton from "../../components/GoogleLoginButton";
-import Image from "next/image";
 
 interface LoginProps {
   searchParams?: { [key: string]: string | string[] | undefined };
 }
 
 export default async function Login({ searchParams }: LoginProps) {
-  const toy_id = searchParams?.toy_id as string | undefined;
-  const personality_id = searchParams?.personality_id as string | undefined;
-  const isGoogleOAuthEnabled = process.env.GOOGLE_OAUTH === "True";
-  // const supabase = createClient();
-
-  // const {
-  //     data: { user },
-  // } = await supabase.auth.getUser();
-
-  // if (user) {
-  //     return redirect("/home");
-  // }
-
   const signInOrSignUp = async (formData: FormData) => {
     "use server";
 
@@ -51,30 +31,6 @@ export default async function Login({ searchParams }: LoginProps) {
     if (!signInError) {
       return redirect("/home");
     }
-
-    // If sign in fails, try to sign up
-    const origin = headers().get("origin");
-    const { error: signUpError } = await supabase.auth.signUp({
-      email,
-      password,
-      options: {
-        data: {
-          toy_id: toy_id,
-          personality_id: personality_id,
-        },
-        emailRedirectTo: `${origin}/auth/callback`,
-      },
-    });
-
-    if (signUpError) {
-      return redirect(`/login?message=${signUpError.message}`);
-    }
-
-    // if (process.env.NEXT_PUBLIC_ENV === "local") {
-    //   return redirect("/login?message=Sussessfully signed up");
-    // } else {
-    //   return redirect("/login?message=Check email to continue sign in process");
-    // }
 
     return redirect("/login?message=Check email to continue sign in process");
   };
