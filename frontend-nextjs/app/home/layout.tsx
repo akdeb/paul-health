@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/utils/supabase/server";
 import { SidebarNav } from "../components/Nav/SidebarNavItems";
-import { LayoutDashboard, ClipboardList, Settings } from "lucide-react";
+import { LayoutDashboard, ClipboardList, Settings, PersonStanding } from "lucide-react";
 import { Metadata } from "next";
 import { getOpenGraphMetadata } from "@/lib/utils";
 import { MobileNav } from "../components/Nav/MobileNav";
@@ -22,7 +22,7 @@ const sidebarNavItems: SidebarNavItem[] = [
     {
         title: "Dashboard",
         href: "/home",
-        icon: <LayoutDashboard size={ICON_SIZE} />,
+        icon: <LayoutDashboard size={ICON_SIZE} fill="currentColor" />,
     },
     {
         title: "Care Plan",
@@ -30,9 +30,9 @@ const sidebarNavItems: SidebarNavItem[] = [
         icon: <ClipboardList size={ICON_SIZE} />,
     },
     {
-        title: "Care Settings",
+        title: "Patient",
         href: "/home/settings",
-        icon: <Settings size={ICON_SIZE} />,
+        icon: <PersonStanding size={ICON_SIZE} />,
     },
 ];
 

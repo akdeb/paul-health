@@ -90,7 +90,7 @@ export function NavbarDropdownMenu({ user }: NavbarMenuButtonProps) {
                             <DropdownMenuItem>
                                 <Link href="/home/settings" className="flex w-full flex-row gap-2">
                                     <Settings size={ICON_SIZE} />
-                                    <span>Care Settings</span>
+                                    <span>Patient</span>
                                 </Link>
                             </DropdownMenuItem>
                         </>

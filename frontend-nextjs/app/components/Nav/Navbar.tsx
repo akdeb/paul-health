@@ -6,12 +6,15 @@ import Link from "next/link";
 import { Button } from "@/components/ui/button";
 import LeftNavbarButtons from "./LeftNavbarButtons";
 import { ArrowRight } from "lucide-react";
+import { usePathname } from "next/navigation";
 
 export function Navbar({
     user,
 }: {
     user: IUser | null;
 }) {
+    const pathname = usePathname();
+    const isHome = pathname.startsWith("/home");
     const [isVisible, setIsVisible] = useState(true);
     const [lastScrollY, setLastScrollY] = useState(0);
     const isMobile = useMediaQuery("(max-width: 768px)");
@@ -39,11 +42,13 @@ export function Navbar({
                 isVisible ? "translate-y-0" : "-translate-y-full"
             }`}
         >
-            <nav className="mx-auto flex w-full max-w-screen-xl items-center justify-between px-4">
+            <nav className={`mx-auto flex w-full max-w-screen-xl items-center ${isHome ? "justify-center" : "justify-between"} px-4`}>
                 <LeftNavbarButtons user={user} />
-                <Button asChild size="lg" variant="primary">
-                    <Link href={portalHref}>Portal <ArrowRight className="ml-2 h-4 w-4" /></Link>
-                </Button>
+                {!isHome && (
+                    <Button asChild size="lg" variant="primary">
+                        <Link href={portalHref}>Portal <ArrowRight className="ml-2 h-4 w-4" /></Link>
+                    </Button>
+                )}
             </nav>
         </div>
     );

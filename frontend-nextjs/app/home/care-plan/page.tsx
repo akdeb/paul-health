@@ -3,6 +3,7 @@ import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { FeatureCard } from "@/components/feature-card";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
@@ -39,24 +40,15 @@ export default async function CarePlanPage() {
 
     return (
         <div className="space-y-6 pb-10">
-            <Card className="border-[#ffdccc] bg-[#fff4ea]">
-                <CardHeader>
-                    <CardTitle className="text-2xl text-[#243640]">Care Plan Workspace</CardTitle>
-                    <CardDescription>
-                        Configure conversation behavior, family context, mood monitoring, and safeguarding in one place.
-                    </CardDescription>
-                </CardHeader>
-            </Card>
-
             <section className="grid gap-4 xl:grid-cols-5">
-                <Card className="xl:col-span-3 border-[#ffe2d4] bg-[#fffefb]">
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2 text-2xl"><BookOpenText className="h-5 w-5 text-[#1f6c6d]" /> Context Builder</CardTitle>
-                        <CardDescription>
-                            Add details to help the companion speak naturally while staying sensitive to memory and emotional needs.
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-4">
+                <FeatureCard
+                    className="xl:col-span-3 border-[#ffe2d4] bg-[#fffefb]"
+                    title="Context Builder"
+                    icon={<BookOpenText className="h-5 w-5 text-[#1f6c6d]" />}
+                    titleClassName="text-2xl"
+                    description="Add details to help the companion speak naturally while staying sensitive to memory and emotional needs."
+                    contentClassName="space-y-4"
+                >
                         <div className="grid gap-4 md:grid-cols-2">
                             <div className="space-y-2">
                                 <Label htmlFor="full-name">Name</Label>
@@ -108,15 +100,16 @@ export default async function CarePlanPage() {
                             <Button variant="primary">Save Context</Button>
                             <Button variant="outline">Start Guided Onboarding</Button>
                         </div>
-                    </CardContent>
-                </Card>
+                </FeatureCard>
 
-                <Card className="xl:col-span-2 border-[#ffe2d4] bg-[#fffefb]">
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2 text-2xl"><CalendarHeart className="h-5 w-5 text-[#5a3f9c]" /> Mood Calendar</CardTitle>
-                        <CardDescription>Confidential, carefully filtered sentiment signals from recent conversations.</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
+                <FeatureCard
+                    className="xl:col-span-2 border-[#ffe2d4] bg-[#fffefb]"
+                    title="Mood Calendar"
+                    icon={<CalendarHeart className="h-5 w-5 text-[#5a3f9c]" />}
+                    titleClassName="text-2xl"
+                    description="Confidential, carefully filtered sentiment signals from recent conversations."
+                    contentClassName="space-y-3"
+                >
                         {weeklyMood.map((entry) => (
                             <div key={entry.day} className="flex items-center justify-between rounded-xl border border-[#ece9f6] bg-[#faf9fe] px-3 py-2">
                                 <span className="font-medium text-[#2e3251]">{entry.day}</span>
@@ -128,17 +121,18 @@ export default async function CarePlanPage() {
                             <p className="font-semibold">Suggested action</p>
                             <p className="mt-1">Friday shows elevated loneliness markers. Consider a family call or in-person check-in.</p>
                         </div>
-                    </CardContent>
-                </Card>
+                </FeatureCard>
             </section>
 
             <section className="grid gap-4 lg:grid-cols-2">
-                <Card className="border-[#ffe2d4] bg-[#fffefb]">
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2 text-2xl"><HeartPulse className="h-5 w-5 text-[#1f6c6d]" /> Tone of Voice</CardTitle>
-                        <CardDescription>Choose the style the assistant should follow in day-to-day conversations.</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
+                <FeatureCard
+                    className="border-[#ffe2d4] bg-[#fffefb]"
+                    title="Tone of Voice"
+                    icon={<HeartPulse className="h-5 w-5 text-[#1f6c6d]" />}
+                    titleClassName="text-2xl"
+                    description="Choose the style the assistant should follow in day-to-day conversations."
+                    contentClassName="space-y-3"
+                >
                         <label className="flex cursor-pointer items-start gap-3 rounded-xl border border-[#d6e4e9] p-3">
                             <input type="radio" name="tone" defaultChecked className="mt-1" />
                             <div>
@@ -161,17 +155,16 @@ export default async function CarePlanPage() {
                             </div>
                         </label>
                         <Button variant="primary">Update Tone</Button>
-                    </CardContent>
-                </Card>
+                </FeatureCard>
 
-                <Card className="border-[#ffe2d4] bg-[#fffefb]">
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2 text-2xl"><BellRing className="h-5 w-5 text-[#b85d2a]" /> Safeguarding Notifications</CardTitle>
-                        <CardDescription>
-                            Automatically notify caregivers if the user may be distressed or in immediate need of support.
-                        </CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
+                <FeatureCard
+                    className="border-[#ffe2d4] bg-[#fffefb]"
+                    title="Safeguarding Notifications"
+                    icon={<BellRing className="h-5 w-5 text-[#b85d2a]" />}
+                    titleClassName="text-2xl"
+                    description="Automatically notify caregivers if the user may be distressed or in immediate need of support."
+                    contentClassName="space-y-3"
+                >
                         <div className="space-y-2">
                             <Label htmlFor="caregivers">Caregiver contacts</Label>
                             <Input id="caregivers" placeholder="name@email.com, +45 12 34 56 78" />
@@ -184,8 +177,7 @@ export default async function CarePlanPage() {
                             Alerts include summary context only and should be handled with strict confidentiality.
                         </div>
                         <Button variant="primary">Save Notification Rules</Button>
-                    </CardContent>
-                </Card>
+                </FeatureCard>
             </section>
         </div>
     );

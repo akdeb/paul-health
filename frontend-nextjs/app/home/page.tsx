@@ -3,7 +3,8 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/utils/supabase/server";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { FeatureCard } from "@/components/feature-card";
 import Link from "next/link";
 import { AlertTriangle, BellRing, CalendarClock, Clock3, MessageSquareText, PhoneCall, ShieldCheck } from "lucide-react";
 
@@ -60,7 +61,7 @@ export default async function Home() {
                         <Link href="/home/care-plan">Open Care Plan</Link>
                     </Button>
                     <Button asChild variant="outline">
-                        <Link href="/home/settings">Care Settings</Link>
+                        <Link href="/home/settings">Patient</Link>
                     </Button>
                 </div>
 </div>
@@ -69,25 +70,27 @@ export default async function Home() {
 
             <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                 {overviewStats.map((item) => (
-                    <Card key={item.label} className="border-[#ffe2d4] bg-[#fffdf9]">
-                        <CardHeader className="pb-2">
-                            <CardDescription className="text-[#4a5f6b]">{item.label}</CardDescription>
-                            <CardTitle className={`flex items-center gap-2 text-2xl ${item.tone}`}>
-                                <item.icon className="h-5 w-5" />
-                                {item.value}
-                            </CardTitle>
-                        </CardHeader>
-                    </Card>
+                    <FeatureCard
+                        key={item.label}
+                        className="border-[#ffe2d4] bg-[#fffdf9]"
+                        headerClassName="pb-2"
+                        descriptionClassName="text-[#4a5f6b]"
+                        titleClassName={`text-2xl ${item.tone}`}
+                        title={item.value}
+                        icon={<item.icon className="h-5 w-5" />}
+                        description={item.label}
+                    />
                 ))}
             </section>
 
             <section className="grid gap-4 lg:grid-cols-2">
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2 text-2xl"><BellRing className="h-5 w-5 text-[#b85d2a]" /> Safeguarding queue</CardTitle>
-                        <CardDescription>Recent events that may require immediate caregiver follow-up.</CardDescription>
-                    </CardHeader>
-                    <CardContent className="space-y-3">
+                <FeatureCard
+                    title="Safeguarding queue"
+                    icon={<BellRing className="h-5 w-5 text-[#b85d2a]" />}
+                    titleClassName="text-2xl"
+                    description="Recent events that may require immediate caregiver follow-up."
+                    contentClassName="space-y-3"
+                >
                         <div className="rounded-xl border border-[#ffd8c9] bg-[#fff2e9] p-4 text-sm text-[#724725]">
                             <p className="font-semibold">High priority · 10:14 AM</p>
                             <p className="mt-1">Repeated confusion signals and distress language detected for ~6 minutes.</p>
@@ -96,22 +99,20 @@ export default async function Home() {
                             <p className="font-semibold">Info · 9:20 AM</p>
                             <p className="mt-1">Morning conversation ended in stable mood after orientation prompts.</p>
                         </div>
-                    </CardContent>
-                </Card>
+                </FeatureCard>
 
-                <Card>
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2 text-2xl"><ShieldCheck className="h-5 w-5 text-[#1f6c6d]" /> Quick actions</CardTitle>
-                        <CardDescription>Fast actions for today without entering full Care Plan configuration.</CardDescription>
-                    </CardHeader>
-                    <CardContent>
+                <FeatureCard
+                    title="Quick actions"
+                    icon={<ShieldCheck className="h-5 w-5 text-[#1f6c6d]" />}
+                    titleClassName="text-2xl"
+                    description="Fast actions for today without entering full Care Plan configuration."
+                >
                         <div className="flex flex-wrap gap-3">
                             <Button asChild variant="primary"><Link href="/home/care-plan">Adjust care rules</Link></Button>
                             <Button asChild variant="outline"><Link href="/home/create">Add companion feature</Link></Button>
                             <Button asChild variant="outline"><Link href="/home/settings"><PhoneCall className="mr-2 h-4 w-4" />Update contacts</Link></Button>
                         </div>
-                    </CardContent>
-                </Card>
+                </FeatureCard>
             </section>
         </div>
     );

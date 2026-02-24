@@ -30,7 +30,7 @@ export default function Footer() {
                         Send feedback
                     </Button>
                 </a>
-                <Label className="font-normal font-shipporiMinchoB1 text-xs text-black">
+                <Label className="font-bold font-shipporiMinchoB1 text-xs text-black">
                     PAUL © {new Date().getFullYear()}
                 </Label>
             </div>

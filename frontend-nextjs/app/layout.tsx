@@ -103,7 +103,7 @@ const shipporiMinchoB1 = Shippori_Mincho_B1({
     subsets: ["latin"],
     display: "swap",
     variable: "--font-shippori-mincho-b1",
-    weight: ["400"],
+    weight: ["400", "700", "800"],
 });
 
 const fonts = `${inter.variable} ${inter_tight.variable} ${baloo2.variable} ${comicNeue.variable} ${quicksand.variable} ${fredoka.variable} ${lora.variable} ${karla.variable} ${borel.variable} ${silkscreen.variable} ${luckiestGuy.variable} ${shipporiMinchoB1.variable}`;
