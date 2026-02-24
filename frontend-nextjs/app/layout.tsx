@@ -11,6 +11,7 @@ import {
     Borel,
     Silkscreen,
     Luckiest_Guy,
+    Shippori_Mincho_B1
 } from "next/font/google";
 import "./globals.css";
 import { createClient } from "@/utils/supabase/server";
@@ -98,7 +99,14 @@ const luckiestGuy = Luckiest_Guy({
     weight: ["400"],
 });
 
-const fonts = `${inter.variable} ${inter_tight.variable} ${baloo2.variable} ${comicNeue.variable} ${quicksand.variable} ${fredoka.variable} ${lora.variable} ${karla.variable} ${borel.variable} ${silkscreen.variable} ${luckiestGuy.variable}`;
+const shipporiMinchoB1 = Shippori_Mincho_B1({
+    subsets: ["latin"],
+    display: "swap",
+    variable: "--font-shippori-mincho-b1",
+    weight: ["400"],
+});
+
+const fonts = `${inter.variable} ${inter_tight.variable} ${baloo2.variable} ${comicNeue.variable} ${quicksand.variable} ${fredoka.variable} ${lora.variable} ${karla.variable} ${borel.variable} ${silkscreen.variable} ${luckiestGuy.variable} ${shipporiMinchoB1.variable}`;
 
 const defaultUrl = process.env.VERCEL_URL
     ? `https://${process.env.VERCEL_URL}`
@@ -335,8 +343,8 @@ export default async function RootLayout({
                     }}
                 />
             </head>
-            <body className="bg-background text-foreground flex flex-col min-h-screen bg-gray-50 font-karla">
-                <NextTopLoader showSpinner={false} color="#facc15" />
+            <body className="bg-background text-foreground flex flex-col bg-white font-karla">
+                <NextTopLoader showSpinner={false} color="orange" />
 
                 {/* <ThemeProvider
                     attribute="class"
@@ -353,7 +361,6 @@ export default async function RootLayout({
                 <Toaster />
                 {/* </ThemeProvider> */}
             </body>
-            <GoogleAnalytics gaId="G-CR07NVH6CN" />
         </html>
     );
 }

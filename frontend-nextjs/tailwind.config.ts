@@ -117,6 +117,7 @@ const config = {
                 borel: ["var(--font-borel)"],
                 silkscreen: ["var(--font-silkscreen)"],
                 luckiestGuy: ["var(--font-luckiest-guy)"],
+                shipporiMinchoB1: ["var(--font-shippori-mincho-b1)"],
             },
             animation: {
                 "accordion-down": "accordion-down 0.2s ease-out",

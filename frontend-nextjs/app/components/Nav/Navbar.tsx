@@ -35,14 +35,14 @@ export function Navbar({
 
     return (
         <div
-            className={`backdrop-blur-[6px] bg-white/70 border-b border-[#ffd8c9] flex-none flex items-center sticky top-0 z-50 transition-transform duration-300 h-[64px] ${
+            className={`backdrop-blur-[6px] bg-white/70 flex-none flex items-center sticky top-0 z-50 transition-transform duration-300 h-[64px] ${
                 isVisible ? "translate-y-0" : "-translate-y-full"
             }`}
         >
             <nav className="mx-auto flex w-full max-w-screen-xl items-center justify-between px-4">
                 <LeftNavbarButtons user={user} />
                 <Button asChild size="lg" variant="primary">
-                    <Link href={portalHref}>Caregiver Portal <ArrowRight className="ml-2 h-4 w-4" /></Link>
+                    <Link href={portalHref}>Portal <ArrowRight className="ml-2 h-4 w-4" /></Link>
                 </Button>
             </nav>
         </div>

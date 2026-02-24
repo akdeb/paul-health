@@ -16,7 +16,7 @@ export default function Footer() {
         <footer
             className={`w-full ${
                 isHome ? "pb-16" : "pb-2"
-            } border-[#ffd8c9] bg-white/80 flex flex-col sm:flex-row items-center sm:justify-center border-t-[1px] mx-auto text-center text-xs sm:gap-8 sm:py-2 py-3`}
+            } bg-white/80 flex flex-col sm:flex-row items-center sm:justify-center mx-auto text-center text-xs sm:gap-8 sm:py-2 py-3`}
         >
             <div className="flex flex-row items-center gap-8">
                 <a href={"mailto:miguel@studiomorfar.com"} target="_blank" rel="noreferrer">
@@ -30,14 +30,9 @@ export default function Footer() {
                         Send feedback
                     </Button>
                 </a>
-                <Label className="font-normal text-xs text-[#865042]">
-                    Paul © {new Date().getFullYear()}
+                <Label className="font-normal font-shipporiMinchoB1 text-xs text-black">
+                    PAUL © {new Date().getFullYear()}
                 </Label>
-            </div>
-            <div className={`${isHome && isMobile ? "hidden" : "flex"} flex-row items-center gap-2 text-xs text-[#865042]`}>
-                <span>Project by Studio Paul</span>
-                <span>·</span>
-                <span>Copenhagen</span>
             </div>
         </footer>
     );

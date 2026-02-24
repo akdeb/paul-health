@@ -81,29 +81,13 @@ export default async function Login({ searchParams }: LoginProps) {
 
   return (
     <div className="flex-1 flex flex-col w-full px-8 sm:max-w-md justify-center gap-2">
-      <Card className="shadow-md sm:bg-white bg-transparent shadow-none">
+      <Card className="sm:bg-white bg-transparent rounded-3xl shadow-none">
         <CardHeader>
-          <CardTitle className="flex flex-row gap-1 items-center">
-            Login to Paul Health
-            <Sparkles size={20} fill="black" />
+          <CardTitle className="flex flex-row gap-1 items-center text-2xl font-bold justify-center font-shipporiMinchoB1">
+            Login to PAUL
           </CardTitle>
-          <CardDescription>
-            Login or sign up your account to continue
-          </CardDescription>
         </CardHeader>
         <CardContent className="grid gap-4">
-          {/* <ToyPreview /> */}
-
-          {isGoogleOAuthEnabled && (
-            <GoogleLoginButton
-              toy_id={toy_id}
-              personality_id={personality_id}
-            />
-          )}
-
-           <Separator className="mt-2" />
-           <span className="text-sm text-gray-500">If you've got your DB running locally, you can login with: <br/><span className="font-bold">Email</span> admin@elatoai.com<br /><span className="font-bold">Password</span> admin</span>
-         
           <form className="flex-1 flex flex-col w-full justify-center gap-4">
             <Label className="text-md" htmlFor="email">
               Email
@@ -126,16 +110,9 @@ export default async function Login({ searchParams }: LoginProps) {
               required
             />
 
-            <Link
-              className="text-xs text-foreground underline"
-              href="/forgot-password"
-            >
-              Forgot Password?
-            </Link>
-
             <SubmitButton
               formAction={signInOrSignUp}
-              className="text-sm font-medium bg-gray-100 hover:bg-gray-50 dark:text-stone-900 border-[0.1px] rounded-md px-4 py-2 text-foreground my-2"
+              className="text-sm font-medium bg-gray-100 hover:bg-gray-50 dark:text-stone-900 border-[0.1px] rounded-full px-4 py-2 text-foreground my-2"
               pendingText="Signing In..."
             >
               Continue with Email
