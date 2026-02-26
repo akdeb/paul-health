@@ -93,7 +93,7 @@ const AppSettings: React.FC<AppSettingsProps> = ({
     }
 
     return (
-        <>
+        <div className="max-w-screen-sm">
             <GeneralUserForm
                     selectedUser={selectedUser}
                     userId={selectedUser.user_id}
@@ -102,7 +102,7 @@ const AppSettings: React.FC<AppSettingsProps> = ({
                     onClickCallback={() => handleSave()}
                 />
 
-            <div className="space-y-4 max-w-screen-sm mt-12">
+            <div className="space-y-4 mt-12">
                 <h2 className="text-lg font-semibold border-b border-gray-200 pb-2">
                     Device settings
                 </h2>
@@ -198,7 +198,7 @@ const AppSettings: React.FC<AppSettingsProps> = ({
                         </form>
                 </div>
             </div>
-        </>
+        </div>
     );
 };
 

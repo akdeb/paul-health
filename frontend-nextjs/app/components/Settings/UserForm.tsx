@@ -68,7 +68,7 @@ const GeneralUserForm = ({ selectedUser, onSave, onClickCallback, userId, headin
                 className="flex flex-col gap-8 mb-4"
             >
                 {heading}
-                <section className="space-y-4 max-w-screen-sm">
+                <section className="space-y-4">
                     <h2 className="text-lg font-semibold border-b border-gray-200 pb-2">
                         Basic Info
                     </h2>
