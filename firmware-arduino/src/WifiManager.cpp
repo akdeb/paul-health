@@ -21,13 +21,13 @@ bool isDeviceRegistered() {
     HTTPClient http;
 
     #ifdef DEV_MODE
-      http.begin("http://" + String(backend_server) + ":" + String(backend_port) +
-                  "/api/generate_auth_token?macAddress=" + WiFi.macAddress());
+    http.begin("http://" + String(backend_server) + ":" + String(backend_port) +
+                 "/api/generate_auth_token?macAddress=" + WiFi.macAddress());
     #else
-      WiFiClientSecure client;
-      client.setCACert(Vercel_CA_cert);
-      http.begin(client, "https://" + String(backend_server) +
-                  "/api/generate_auth_token?macAddress=" + WiFi.macAddress());
+    WiFiClientSecure client;
+    client.setCACert(Vercel_CA_cert);
+    http.begin(client, "https://" + String(backend_server) +
+                 "/api/generate_auth_token?macAddress=" + WiFi.macAddress());
     #endif
 
     http.setTimeout(10000);
@@ -98,7 +98,7 @@ void wifiTask(void* param) {
   yield();
   delay(500); // wait a short time until everything is setup before executing the loop forever
   yield();
-  const TickType_t xDelay = 10000 / portTICK_PERIOD_MS;
+  const TickType_t xDelay = 100 / portTICK_PERIOD_MS;  // Run every 100ms for DNS processing
   WIFIMANAGER * wifimanager = (WIFIMANAGER *) param;
 
   for(;;) {
@@ -168,7 +168,8 @@ WIFIMANAGER::WIFIMANAGER(const char * ns) {
 #endif
   // AP client join/leave
   WiFi.onEvent([&](WiFiEvent_t event, WiFiEventInfo_t info) {
-    logMessage("[WIFI] onEvent() new client connected to softAP!\n");
+    logMessage("[WIFI] ✅ New client connected to softAP!\n");
+    logMessage("[WIFI] Client should now see captive portal popup\n");
 #if ESP_ARDUINO_VERSION_MAJOR >= 2
     }, ARDUINO_EVENT_WIFI_AP_STACONNECTED); // arduino-esp32 2.0.0 and later
 #else
@@ -205,7 +206,7 @@ void WIFIMANAGER::fallbackToSoftAp(const bool state) {
  * @return true
  * @return false
  */
-bool WIFIMANAGER::getFallbackState() const {
+bool WIFIMANAGER::getFallbackState() {
   return createFallbackAP;
 }
 
@@ -288,7 +289,7 @@ bool WIFIMANAGER::writeToNVS() {
  * @return false on failure
  */
 bool WIFIMANAGER::addWifi(String apName, String apPass, bool updateNVS) {
-  if(apName.length() < 1 || apName.length() > 31) {
+  if(apName.length() < 1 || apName.length() > 63) {
     logMessage("[WIFI] No SSID given or ssid too long");
     return false;
   }
@@ -349,7 +350,7 @@ bool WIFIMANAGER::delWifi(String apName) {
  * @return true if one or more SSIDs stored
  * @return false if no configuration is available
  */
-bool WIFIMANAGER::configAvailable() const {
+bool WIFIMANAGER::configAvailable() {
     return configuredSSIDs != 0;
 }
 
@@ -373,6 +374,11 @@ uint8_t WIFIMANAGER::getApEntry() {
  * @details regulary check if the connection is up&running, try to reconnect or create a fallback AP
  */
 void WIFIMANAGER::loop() {
+  // Process DNS requests for captive portal when SoftAP is running
+  if (softApRunning) {
+    dnsServer.processNextRequest();
+  }
+  
   if (millis() - lastWifiCheckMillis < intervalWifiCheckMillis) return;
   lastWifiCheckMillis = millis();
 
@@ -409,7 +415,6 @@ void WIFIMANAGER::loop() {
     delay(100);
   }
 }
-
 /**
  * @brief Try to connect to one of the configured SSIDs (if available).
  * @details If more than 2 SSIDs configured, scan for available WIFIs and connect to the strongest
@@ -496,7 +501,6 @@ bool WIFIMANAGER::tryConnect() {
         connectCb();
         stopSoftAP();
         return true;
-        break;
       case WL_CONNECT_FAILED:
         logMessage("[WIFI] Connecting failed (4): Unknown reason\n");
         break;
@@ -525,7 +529,7 @@ void WIFIMANAGER::configueSoftAp(String apName, String apPass) {
 
 
 /**
- * @brief Start a SoftAP for direct client access
+ * @brief Start a SoftAP for direct client access with captive portal support
  * @param apName name of the AP to create (default is ESP_XXXXXXXX)
  * @return true on success
  * @return false o error or if a SoftAP already runs
@@ -544,7 +548,13 @@ bool WIFIMANAGER::runSoftAP(String apName, String apPass) {
   bool state = WiFi.softAP(this->softApName.c_str(), (this->softApPass.length() ? this->softApPass.c_str() : NULL));
   if (state) {
     IPAddress IP = WiFi.softAPIP();
-    logMessage("[WIFI] AP created. My IP is: " + String(IP) + "\n");
+    logMessage("[WIFI] AP created. My IP is: " + IP.toString() + "\n");
+    
+    // Start DNS server for captive portal - redirect all requests to our IP
+    dnsServer.start(53, "*", IP);
+    logMessage("[WIFI] DNS Server started for captive portal\n");
+    softApRunning = true;
+    
     return true;
   } else {
     logMessage("[WIFI] Unable to create SoftAP!\n");
@@ -556,8 +566,11 @@ bool WIFIMANAGER::runSoftAP(String apName, String apPass) {
  * @brief Stop/Disconnect a current running SoftAP
  */
 void WIFIMANAGER::stopSoftAP() {
+  dnsServer.stop();
+  logMessage("[WIFI] DNS Server stopped\n");
   WiFi.softAPdisconnect();
   WiFi.mode(WIFI_STA);
+  softApRunning = false;
 }
 
 /**
@@ -589,7 +602,87 @@ void WIFIMANAGER::attachWebServer(WebServer * srv) {
   webServer = srv; // store it in the class for later use
 
 #if ASYNC_WEBSERVER == true
-  // not required
+  auto sendCaptivePortalPage = [this](AsyncWebServerRequest *request) {
+    IPAddress ip = WiFi.softAPIP();
+    String portalUrl("http://");
+    portalUrl += ip.toString();
+    portalUrl += uiPrefix;
+
+    AsyncResponseStream *response = request->beginResponseStream("text/html");
+    response->addHeader("Cache-Control", "no-store, no-cache, must-revalidate");
+    response->addHeader("Pragma", "no-cache");
+    response->addHeader("Expires", "0");
+
+    response->print(F("<!DOCTYPE html><html><head>"
+                      "<meta http-equiv=\"refresh\" content=\"0; url="));
+    response->print(portalUrl);
+    response->print(F("\" />"
+                      "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1.0\" />"
+                      "<title>ELATO Setup</title>"
+                      "<style>body{font-family:sans-serif;text-align:center;margin:40px;}a{color:#2563eb;}</style>"
+                      "</head><body>"
+                      "<h1>ELATO Wi-Fi Setup</h1>"
+                      "<p>Redirecting to the configuration portal...</p>"
+                      "<p><a href=\""));
+    response->print(portalUrl);
+    response->print(F("\">Tap here if you are not redirected automatically.</a></p>"
+                      "</body></html>"));
+
+    request->send(response);
+  };
+  auto captiveHandler = [sendCaptivePortalPage](AsyncWebServerRequest *request) {
+    sendCaptivePortalPage(request);
+  };
+  // Captive Portal detection handlers - must be registered first
+  // Android captive portal detection
+  webServer->on("/generate_204", HTTP_GET, [this, captiveHandler](AsyncWebServerRequest *request) {
+    logMessage("[CAPTIVE] Android captive portal check detected\n");
+    captiveHandler(request);
+  });
+  
+  webServer->on("/gen_204", HTTP_GET, [this, captiveHandler](AsyncWebServerRequest *request) {
+    logMessage("[CAPTIVE] Android captive portal check detected\n");
+    captiveHandler(request);
+  });
+  
+  // iOS/macOS captive portal detection
+  webServer->on("/hotspot-detect.html", HTTP_GET, [this, captiveHandler](AsyncWebServerRequest *request) {
+    logMessage("[CAPTIVE] iOS/macOS captive portal check detected\n");
+    captiveHandler(request);
+  });
+  
+  webServer->on("/library/test/success.html", HTTP_GET, [this, captiveHandler](AsyncWebServerRequest *request) {
+    logMessage("[CAPTIVE] iOS captive portal check detected\n");
+    captiveHandler(request);
+  });
+  
+  // Ubuntu captive portal detection
+  webServer->on("/canonical.html", HTTP_GET, [this, captiveHandler](AsyncWebServerRequest *request) {
+    logMessage("[CAPTIVE] Ubuntu captive portal check detected\n");
+    captiveHandler(request);
+  });
+  
+  // Firefox captive portal detection
+  webServer->on("/success.txt", HTTP_GET, [this, captiveHandler](AsyncWebServerRequest *request) {
+    logMessage("[CAPTIVE] Firefox captive portal check detected\n");
+    captiveHandler(request);
+  });
+  
+  // Windows captive portal detection
+  webServer->on("/ncsi.txt", HTTP_GET, [this, captiveHandler](AsyncWebServerRequest *request) {
+    logMessage("[CAPTIVE] Windows captive portal check detected\n");
+    captiveHandler(request);
+  });
+  
+  webServer->on("/connecttest.txt", HTTP_GET, [this, captiveHandler](AsyncWebServerRequest *request) {
+    logMessage("[CAPTIVE] Windows captive portal check detected\n");
+    captiveHandler(request);
+  });
+  
+  webServer->on("/redirect", HTTP_GET, [this, captiveHandler](AsyncWebServerRequest *request) {
+    logMessage("[CAPTIVE] Generic redirect detected\n");
+    captiveHandler(request);
+  });
 #else
   // just for debugging
   webServer->onNotFound([&]() {
@@ -676,7 +769,16 @@ void WIFIMANAGER::attachWebServer(WebServer * srv) {
     }
     if (!addWifi(jsonBuffer["apName"].as<String>(), jsonBuffer["apPass"].as<String>())) {
       resp->send(500, "application/json", "{\"message\":\"Unable to process data\"}");
-    } else {resp->send(200, "application/json", "{\"message\":\"New network added\"");}
+    } else {
+      resp->send(200, "application/json", "{\"message\":\"New network added\"}");
+      yield();
+      delay(250);
+      this->stopSoftAP();
+      delay(100);
+      if (!this->tryConnect()) {
+        logMessage("[WIFI] Auto-connect after /wifi/add failed\n");
+      }
+    }
   });
 
 #if ASYNC_WEBSERVER == true

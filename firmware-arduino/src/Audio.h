@@ -1,9 +1,10 @@
-#ifndef AUDIO_H
-#define AUDIO_H
 
-#include "AudioTools.h"
-#include "AudioTools/AudioCodecs/CodecOpus.h"
+#include "Print.h"
 #include "Config.h"
+#include "AudioTools.h"
+// #include "AudioTools/Concurrency/RTOS.h"
+#include "AudioTools/AudioCodecs/CodecOpus.h"
+#include <WebSocketsClient.h>
 
 extern SemaphoreHandle_t wsMutex;
 extern WebSocketsClient webSocket;
@@ -43,8 +44,8 @@ extern StreamCopy micToWsCopier;
 extern volatile bool i2sInputFlushScheduled;
 
 // WEBSOCKET
-void webSocketEvent(WStype_t type, const uint8_t *payload, size_t length);
-void websocketSetup(const String& server_domain, int port, const String& path);
+void webSocketEvent(WStype_t type, uint8_t *payload, size_t length);
+void websocketSetup(String server_domain, int port, String path);
 void networkTask(void *parameter);
 
 // AUDIO OUTPUT
@@ -53,5 +54,3 @@ void audioStreamTask(void *parameter);
 
 // AUDIO INPUT
 void micTask(void *parameter);
-
-#endif

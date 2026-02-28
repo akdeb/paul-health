@@ -1,4 +1,10 @@
 #include "OTA.h"
+#include "Print.h"
+#include "Config.h"
+#include "AudioTools.h"
+// #include "AudioTools/Concurrency/RTOS.h"
+#include "AudioTools/AudioCodecs/CodecOpus.h"
+#include <WebSocketsClient.h>
 #include "Audio.h"
 #include "PitchShift.h"
 
@@ -25,7 +31,7 @@ const int BITS_PER_SAMPLE = 16; // 16-bit audio
 // AUDIO OUTPUT
 class BufferPrint : public Print {
 public:
-  explicit BufferPrint(BufferRTOS<uint8_t>& buf) : _buffer(buf) {}
+  BufferPrint(BufferRTOS<uint8_t>& buf) : _buffer(buf) {}
 
   // networkTask -> webSocket.loop() -> webSocketEvent(WStype_BIN, ...) -> opusDecoder.write() -> bufferPrint.write()
   virtual size_t write(uint8_t data) override {
@@ -140,12 +146,12 @@ void audioStreamTask(void *parameter) {
     // Initialize both volume streams once
     auto vcfg = volume.defaultConfig();
     vcfg.copyFrom(info);
-    vcfg.allow_boost = true;
+    vcfg.allow_boost = false;
     volume.begin(vcfg);
     
     auto vcfgPitch = volumePitch.defaultConfig();
     vcfgPitch.copyFrom(info);
-    vcfgPitch.allow_boost = true;
+    vcfgPitch.allow_boost = false;
     volumePitch.begin(vcfgPitch);
 
     while (1) {
@@ -210,7 +216,7 @@ void micTask(void *parameter) {
     // Configure and start I2S input stream.
     auto i2sConfig = i2sInput.defaultConfig(RX_MODE);
     i2sConfig.bits_per_sample = BITS_PER_SAMPLE;
-    i2sConfig.sample_rate = MIC_SAMPLE_RATE;
+    i2sConfig.sample_rate = INPUT_SAMPLE_RATE;
     i2sConfig.channels = CHANNELS;
     i2sConfig.i2s_format = I2S_LEFT_JUSTIFIED_FORMAT;
     i2sConfig.channel_format = I2S_CHANNEL_FMT_ONLY_LEFT;
@@ -224,7 +230,7 @@ void micTask(void *parameter) {
     micToWsCopier.setDelayOnNoData(0);
 
     while (1) {
-        if (i2sInputFlushScheduled) {
+        if ( i2sInputFlushScheduled ) {
             i2sInputFlushScheduled = false;
             i2sInput.flush();
         }
@@ -243,7 +249,7 @@ void micTask(void *parameter) {
 
 // WEBSOCKET EVENTS
 // networkTask -> webSocket.loop() -> webSocketEvent()
-void webSocketEvent(WStype_t type, const uint8_t *payload, size_t length)
+void webSocketEvent(WStype_t type, uint8_t *payload, size_t length)
 {
     switch (type)
     {
@@ -312,22 +318,22 @@ void webSocketEvent(WStype_t type, const uint8_t *payload, size_t length)
 
             if (strcmp((char*)msg.c_str(), "RESPONSE.COMPLETE") == 0 || strcmp((char*)msg.c_str(), "RESPONSE.ERROR") == 0) {
                 Serial.println("Received RESPONSE.COMPLETE or RESPONSE.ERROR, starting listening again");
-
-                // Check if volume_control is included in the message
-                if (doc.containsKey("volume_control")) {
-                    int newVolume = doc["volume_control"].as<int>();
-                    volume.setVolume(newVolume / 100.0f);
-                }
-
                 scheduleListeningRestart = true;
                 scheduledTime = millis() + 1000; // 1 second delay
             } else if (strcmp((char*)msg.c_str(), "AUDIO.COMMITTED") == 0) {
                 deviceState = PROCESSING; 
             } else if (strcmp((char*)msg.c_str(), "RESPONSE.CREATED") == 0) {
                 Serial.println("Received RESPONSE.CREATED, transitioning to speaking");
+
+                                // Check if volume_control is included in the message
+                if (doc.containsKey("volume_control")) {
+                    int newVolume = doc["volume_control"].as<int>();
+                    volume.setVolume(newVolume / 100.0f);
+                }
+
                 transitionToSpeaking();
             } else if (strcmp((char*)msg.c_str(), "SESSION.END") == 0) {
-                Serial.println("Received SESSION.END, going to sleep");
+                Serial.println("Received SESSION.END, entering sleep");
                 sleepRequested = true;
             }
         }
@@ -361,16 +367,17 @@ void webSocketEvent(WStype_t type, const uint8_t *payload, size_t length)
 }
 
 // wifiTask -> WIFIMANAGER::loop() -> WIFIMANAGER::tryConnect() -> connectCb() -> websocketSetup()
-void websocketSetup(const String& server_domain, int port, const String& path)
+void websocketSetup(String server_domain, int port, String path)
 {
-    const String headers =
+    static String wsExtraHeaders;
+    wsExtraHeaders =
         "Authorization: Bearer " + String(authTokenGlobal) + "\r\n" +
         "X-Wifi-Rssi: " + String(WiFi.RSSI()) + "\r\n" +
         "X-Device-Mac: " + WiFi.macAddress();
 
     xSemaphoreTake(wsMutex, portMAX_DELAY);
 
-    webSocket.setExtraHeaders(headers.c_str());
+    webSocket.setExtraHeaders(wsExtraHeaders.c_str());
     webSocket.onEvent(webSocketEvent);
     webSocket.setReconnectInterval(1000);
     webSocket.disableHeartbeat();
@@ -393,6 +400,7 @@ void networkTask(void *parameter) {
 
         // Check to see if a transition to listening mode is scheduled.
         if (scheduleListeningRestart && millis() >= scheduledTime) {
+            Serial.println("FOOBAR: Transitioning to listening mode");
             transitionToListening();
         }
 

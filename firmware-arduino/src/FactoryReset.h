@@ -1,16 +1,12 @@
-#ifndef FACTORYRESET_H
-#define FACTORYRESET_H
-
+#include <Config.h>
 #include <nvs_flash.h>
-#include <ESPAsyncWebServer.h> //https://github.com/me-no-dev/ESPAsyncWebServer using the latest dev version from @me-no-dev
-#include "Config.h"
 
 void setResetComplete() {
     HTTPClient http;
     WiFiClientSecure client;
     client.setCACert(Vercel_CA_cert);  // Using the existing server certificate
     
-    // Construct JSON payload
+    // Construct the JSON payload
     JsonDocument doc;
     doc["authToken"] = authTokenGlobal;
     
@@ -42,31 +38,15 @@ void setResetComplete() {
     }
     
     http.end();
-
-    // Clear NVS
-    factoryResetDevice();
-
 }
 
-// TODO(@akdeb): Update this to use `false` as default
-void getFactoryResetStatusFromNVS()
-{
-    preferences.begin("is_reset", false);
-    factory_reset_status = preferences.getBool("is_reset", false);
+void quickAuthTokenReset() {
+    preferences.begin("auth", false);
+    preferences.putString("auth_token", "");
     preferences.end();
 }
 
-void setFactoryResetStatusInNVS(bool status)
-{
-    preferences.begin("is_reset", false);
-    preferences.putBool("is_reset", status);
-    preferences.end();
-    factory_reset_status = status;
-}
-
-void factoryResetDevice() {
-    Serial.println("Factory reset device");
-    
+void quickFactoryResetDevice() {
     // Erase the NVS partition
     esp_err_t err = nvs_flash_erase();
     if (err != ESP_OK) {
@@ -80,12 +60,19 @@ void factoryResetDevice() {
         Serial.printf("Error initializing NVS: %d\n", err);
         return;
     }
+
+    // clear auth token from global variable
+    authTokenGlobal = "";
 }
 
-void resetAuth() {
-    preferences.begin("auth", false);
-    preferences.putString("auth_token", "");
-    preferences.end();
+/* factoryResetDevice
+    clear NVS
+*/
+void factoryResetDevice() {
+    Serial.println("Clearing everything from NVS");
+
+    // kinda hacky but mark reset complete first and then clear the auth token from NVS
+    setResetComplete();
+    quickFactoryResetDevice();
 }
 
-#endif
