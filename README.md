@@ -1,5 +1,5 @@
 # Paul 
-AI assistant for people living with dementia
+Personal Assistant Unconditional Listening
 
 ## Features
 
