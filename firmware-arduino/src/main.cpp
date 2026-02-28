@@ -124,7 +124,7 @@ void getAuthTokenFromNVS()
 
 void setupWiFi()
 {
-    WifiManager.startBackgroundTask("ELATO");  // Run the background task to take care of our Wifi
+    WifiManager.startBackgroundTask("PAUL");  // Run the background task to take care of our Wifi
     WifiManager.fallbackToSoftAp(true);        // Run a SoftAP if no known AP can be reached
     WifiManager.attachWebServer(&webServer);   // Attach our API to the Webserver 
     WifiManager.attachUI();                    // Attach the UI to the Webserver

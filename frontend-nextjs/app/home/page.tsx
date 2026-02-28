@@ -12,10 +12,10 @@ export const revalidate = 0;
 export const dynamic = "force-dynamic";
 
 const overviewStats = [
-    { label: "Conversations today", value: "8", icon: MessageSquareText, tone: "text-[#2f5f84]" },
-    { label: "Check-ins scheduled", value: "2", icon: CalendarClock, tone: "text-[#6d4a12]" },
-    { label: "Active alerts", value: "1", icon: AlertTriangle, tone: "text-[#9b4a1f]" },
-    { label: "Last companion activity", value: "12 min ago", icon: Clock3, tone: "text-[#2a6650]" },
+    { label: "Conversations today", value: "8", icon: MessageSquareText, tone: "text-black" },
+    { label: "Check-ins scheduled", value: "2", icon: CalendarClock, tone: "text-black" },
+    { label: "Active alerts", value: "1", icon: AlertTriangle, tone: "text-black" },
+    { label: "Last companion activity", value: "12 min", icon: Clock3, tone: "text-black" },
 ];
 
 export default async function Home() {
@@ -47,12 +47,9 @@ export default async function Home() {
 
     return (
         <div className="space-y-6 pb-10">
-            <section className="relative overflow-hidden rounded-3xl border border-[#ffdccc] bg-[#fff4ea] p-6 sm:p-8">
-                <div className="absolute -right-10 top-0 h-40 w-40 rounded-full bg-[#ffd7c1]" />
-                <div className="absolute -left-12 bottom-0 h-44 w-44 rounded-full bg-[#d9f5e8]" />
+            <section className="relative overflow-hidden rounded-3xl border-2 border-gray-200 bg-gray-50 p-6 sm:p-8">
 <div className="relative z-10">
-<Badge className="mb-3 w-fit border-transparent bg-[#ff6f61] text-white">Dashboard</Badge>
-                <h1 className="font-[var(--font-inter-tight)] text-3xl text-[#243640] sm:text-4xl">Welcome back, {dbUser.supervisor_name || "Caregiver"}</h1>
+                <h1 className="font-semibold text-3xl text-[#243640] sm:text-4xl">Welcome back, {dbUser.supervisor_name || "Caregiver"}</h1>
                 <p className="mt-2 max-w-2xl text-[#42535d]">
                     This dashboard focuses on live status and actions. Care configuration lives in the Care Plan tab.
                 </p>
@@ -72,7 +69,6 @@ export default async function Home() {
                 {overviewStats.map((item) => (
                     <FeatureCard
                         key={item.label}
-                        className="border-[#ffe2d4] bg-[#fffdf9]"
                         headerClassName="pb-2"
                         descriptionClassName="text-[#4a5f6b]"
                         titleClassName={`text-2xl ${item.tone}`}
@@ -86,16 +82,16 @@ export default async function Home() {
             <section className="grid gap-4 lg:grid-cols-2">
                 <FeatureCard
                     title="Safeguarding queue"
-                    icon={<BellRing className="h-5 w-5 text-[#b85d2a]" />}
+                    icon={<BellRing className="h-5 w-5" />}
                     titleClassName="text-2xl"
                     description="Recent events that may require immediate caregiver follow-up."
                     contentClassName="space-y-3"
                 >
-                        <div className="rounded-xl border border-[#ffd8c9] bg-[#fff2e9] p-4 text-sm text-[#724725]">
+                        <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700">
                             <p className="font-semibold">High priority · 10:14 AM</p>
                             <p className="mt-1">Repeated confusion signals and distress language detected for ~6 minutes.</p>
                         </div>
-                        <div className="rounded-xl border border-[#d9f2e7] bg-[#effcf6] p-4 text-sm text-[#246048]">
+                        <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700">
                             <p className="font-semibold">Info · 9:20 AM</p>
                             <p className="mt-1">Morning conversation ended in stable mood after orientation prompts.</p>
                         </div>
@@ -103,7 +99,7 @@ export default async function Home() {
 
                 <FeatureCard
                     title="Quick actions"
-                    icon={<ShieldCheck className="h-5 w-5 text-[#1f6c6d]" />}
+                    icon={<ShieldCheck className="h-5 w-5" />}
                     titleClassName="text-2xl"
                     description="Fast actions for today without entering full Care Plan configuration."
                 >

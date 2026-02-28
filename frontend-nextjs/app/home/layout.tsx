@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/utils/supabase/server";
 import { SidebarNav } from "../components/Nav/SidebarNavItems";
-import { LayoutDashboard, ClipboardList, Settings, PersonStanding } from "lucide-react";
+import { LayoutDashboard, ClipboardList, Settings, PersonStanding, User } from "lucide-react";
 import { Metadata } from "next";
 import { getOpenGraphMetadata } from "@/lib/utils";
 import { MobileNav } from "../components/Nav/MobileNav";
@@ -20,7 +20,7 @@ export const metadata: Metadata = {
 
 const sidebarNavItems: SidebarNavItem[] = [
     {
-        title: "Dashboard",
+        title: "Home",
         href: "/home",
         icon: <LayoutDashboard size={ICON_SIZE} fill="currentColor" />,
     },
@@ -30,9 +30,9 @@ const sidebarNavItems: SidebarNavItem[] = [
         icon: <ClipboardList size={ICON_SIZE} />,
     },
     {
-        title: "Patient",
+        title: "Profile",
         href: "/home/settings",
-        icon: <PersonStanding size={ICON_SIZE} />,
+        icon: <User size={ICON_SIZE} />,
     },
 ];
 
@@ -58,7 +58,7 @@ export default async function RootLayout({
     }
 
     return (
-        <div className="mx-auto flex w-full max-w-screen-xl flex-1 flex-col gap-2 pb-2 md:flex-row">
+        <div className="mx-auto flex w-full max-w-screen-lg flex-1 flex-col gap-2 pb-2 md:flex-row">
             <aside className="w-full pt-2 sm:py-4 md:fixed md:h-screen md:w-[270px] md:overflow-y-auto">
                 <SidebarNav items={sidebarNavItems} />
             </aside>

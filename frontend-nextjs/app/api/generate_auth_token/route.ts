@@ -51,7 +51,7 @@ const getDevUser = async () => {
     const supabase = createClient();
     const { data, error } = await supabase.from("users").select("*").eq(
         "email",
-        "admin@elatoai.com",
+        "admin@paulhealth.com",
     ).single();
     if (error) {
         throw new Error(error.message);

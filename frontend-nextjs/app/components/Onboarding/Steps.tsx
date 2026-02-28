@@ -54,15 +54,15 @@ const Steps: React.FC<{
         }
     };
 
-    let heading = "Let's get your Elato device & account set up";
+    let heading = "Let's get your Paul device & account set up";
     let subHeading =
-        "We want to make sure that your Elato is set up to provide you the best experience possible.";
+        "We want to make sure that your Paul is set up to provide you the best experience possible.";
 
     if (step === 1) {
         {
             heading = "Hello there!";
             subHeading =
-                "With the following details we will be able to personalize your Elato experience.";
+                "With the following details we will be able to personalize your Paul experience.";
         }
     }
 

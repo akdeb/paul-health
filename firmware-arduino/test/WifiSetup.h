@@ -283,7 +283,7 @@ void handleComplete(AsyncWebServerRequest *request)
                                     "</head>"
                                     "<body>"
                                     "<div class='container'>"
-                                    "<div class='header'>Elato AI - Setup Complete</div>"
+                                    "<div class='header'>PAUL Health - Setup Complete</div>"
                                     "<div class='content'>" +
                                     content +
                                     "</div>"
@@ -318,7 +318,7 @@ void handleRoot(AsyncWebServerRequest *request)
                       "</head>"
                       "<body>"
                       "<div class='container'>"
-                      "<div class='header'>Elato AI</div>"
+                      "<div class='header'>PAUL Health</div>"
                       "<div class='content'>"
                       "<h1>Connect to Wi-Fi</h1>";
         if (strcmp(notConnected.c_str(), "true") == 0)
@@ -502,7 +502,7 @@ String getAPSSIDName()
     String macAddress = WiFi.macAddress();
     macAddress.replace(":", "");
     String lastFourMac = macAddress.substring(macAddress.length() - 4); // Get the last 4 characters
-    String ssid = "Elato-" + lastFourMac;
+    String ssid = "PAUL-" + lastFourMac;
     return ssid;
 }
 
