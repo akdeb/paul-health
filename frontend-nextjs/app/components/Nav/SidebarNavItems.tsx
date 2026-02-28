@@ -32,7 +32,7 @@ export function SidebarNav({ className, items, ...props }: SidebarNavProps) {
     return (
         <nav
             className={cn(
-                "max-w-[270px] mx-auto hidden md:flex space-x-2 justify-between px-4 pl-0 sm:justify-evenly md:justify-start md:flex-col md:space-x-0 md:space-y-6 rounded-xl",
+                "max-w-[240px] mx-auto hidden md:flex space-x-2 justify-between px-4 pl-0 sm:justify-evenly md:justify-start md:flex-col md:space-x-0 md:space-y-6 rounded-xl",
                 className
             )}
             {...props}
@@ -54,7 +54,7 @@ export function SidebarNav({ className, items, ...props }: SidebarNavProps) {
                         <span className="mr-2">{item.icon}</span>
                         {item.title}
                         {pathname === item.href && (
-                            <Dot className="hidden sm:block flex-shrink-0" size={48} />
+                            <Dot className="hidden sm:block flex-shrink-0" size={36} />
                         )}
                     </Link>
                 );

@@ -8,6 +8,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { BellRing, BookOpenText, CalendarHeart, HeartPulse } from "lucide-react";
+import HomePageSubtitles from "@/app/components/HomePageSubtitles";
 
 export const metadata = {
     title: "Care Plan",
@@ -40,6 +41,10 @@ export default async function CarePlanPage() {
 
     return (
         <div className="space-y-6 pb-10">
+            <div className="flex flex-col gap-2">
+ <h1 className="text-3xl font-normal">Care Plan</h1>
+                <HomePageSubtitles user={dbUser} page="care-plan" />
+            </div>
                 <FeatureCard
                     className="xl:col-span-2 border-gray-200 bg-white"
                     title="Mood Calendar"

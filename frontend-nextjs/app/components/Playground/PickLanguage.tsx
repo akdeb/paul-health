@@ -40,7 +40,7 @@ const PickLanguage: React.FC<PickLanguageProps> = ({
     };
 
     return (
-        <div className="flex flex-col gap-2 mr-1">
+        <div className="flex flex-col gap-2">
             <Select
                 onValueChange={(value: string) => {
                     onLanguagePicked(value as string);

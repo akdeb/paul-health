@@ -1,6 +1,6 @@
 interface HomePageSubtitlesProps {
     user: IUser;
-    page: "home" | "settings" | "create";
+    page: "home" | "settings" | "create" | "care-plan";
     languageCode?: string;
 }
 
@@ -33,6 +33,12 @@ const HomePageSubtitles: React.FC<HomePageSubtitlesProps> = ({
         return (
             <p className="text-sm text-gray-600">
                 {"Customize your character's voice, language, accent and much more"}
+            </p>
+        );
+    } else if (page === "care-plan") {
+        return (
+            <p className="text-sm text-gray-600">
+                {"Track your mood and wellbeing over time"}
             </p>
         );
     }

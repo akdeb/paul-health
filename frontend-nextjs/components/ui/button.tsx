@@ -31,6 +31,8 @@ const buttonVariants = cva(
                     "bg-stone-900 dark:bg-stone-100 text-primary-foreground hover:bg-stone-800",
                 primary_outline:
                     "border border-stone-900 text-stone-900 hover:bg-stone-100",
+                blue:
+                    "bg-blue-600 text-blue-100 hover:bg-blue-500",
             },
             size: {
                 default: "h-10 px-4 py-2",

@@ -55,7 +55,7 @@ const SettingsDashboard: React.FC<SettingsDashboardProps> = ({
     const Heading = () => {
         return (
             <div className="flex flex-col gap-2">
-                <div className="flex flex-row gap-4 items-center sm:justify-normal justify-between max-w-screen-sm">
+                <div className="flex flex-row gap-4 items-center sm:justify-normal justify-between">
                     <div className="flex flex-row gap-4 items-center justify-between w-full">
                         <h1 className="text-3xl font-normal">Settings</h1>
                         <div className="pt-1 flex flex-row items-center">
@@ -81,7 +81,7 @@ const SettingsDashboard: React.FC<SettingsDashboardProps> = ({
     };
 
     return (
-        <div className="overflow-hidden pb-2 w-full flex-auto flex flex-col px-1">
+        <div className="pb-2 w-full flex-auto flex flex-col">
             <AppSettings
                 heading={<Heading />}
                 selectedUser={selectedUser}

@@ -93,7 +93,7 @@ const AppSettings: React.FC<AppSettingsProps> = ({
     }
 
     return (
-        <div className="max-w-screen-sm">
+        <div>
             <GeneralUserForm
                     selectedUser={selectedUser}
                     userId={selectedUser.user_id}

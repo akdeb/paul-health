@@ -6,8 +6,6 @@ import { updateUser } from "@/db/users";
 import _ from "lodash";
 import HomePageSubtitles from "../HomePageSubtitles";
 import PersonalityFilters from "./PersonalityFilters";
-import { TranscriptProvider } from "../Realtime/contexts/TranscriptContext";
-import { EventProvider } from "../Realtime/contexts/EventContext";
 import App from "../Realtime/App";
 import UserPersonalities from "./UserPersonalities";
 
@@ -54,11 +52,12 @@ const Playground: React.FC<PlaygroundProps> = ({
                             {"Playground"}
                         </h1>
                         <div className="flex flex-col gap-8 items-center justify-center">
-                        <TranscriptProvider>
-      <EventProvider>
-        <App personalityIdState={personalityIdState} isDoctor={isDoctor} userId={currentUser.user_id} />
-      </EventProvider>
-    </TranscriptProvider>
+        <App
+            personalityIdState={personalityIdState}
+            isDoctor={isDoctor}
+            user={currentUser}
+            usageLimitExceeded={false}
+        />
                         </div>
                     </div>
                 </div>

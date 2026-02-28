@@ -105,7 +105,7 @@ export default async function Home() {
                 >
                         <div className="flex flex-wrap gap-3">
                             <Button asChild variant="primary"><Link href="/home/care-plan">Adjust care rules</Link></Button>
-                            <Button asChild variant="outline"><Link href="/home/create">Add companion feature</Link></Button>
+                            <Button asChild variant="outline"><Link href="/home/ai-settings">Add companion feature</Link></Button>
                             <Button asChild variant="outline"><Link href="/home/settings"><PhoneCall className="mr-2 h-4 w-4" />Update contacts</Link></Button>
                         </div>
                 </FeatureCard>
