@@ -74,6 +74,7 @@ export function Navbar({
             user={user}
             usageLimitExceeded={false}
             autoStart={true}
+            conversationTarget="caregiver"
           />
         )}
         </>

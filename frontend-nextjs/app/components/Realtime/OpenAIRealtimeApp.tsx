@@ -18,6 +18,11 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import Transcript from "./components/Transcript";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { createClient } from "@/utils/supabase/client";
+import {
+  buildCharacterInstructions,
+  buildOpeningTurnPrompt,
+  ConversationTarget,
+} from "./lib/promptContext";
 
 interface OpenAIRealtimeAppProps {
   personality: IPersonality;
@@ -25,9 +30,17 @@ interface OpenAIRealtimeAppProps {
   user: IUser;
   usageLimitExceeded: boolean;
   autoStart?: boolean;
+  conversationTarget?: ConversationTarget;
 }
 
-function OpenAIRealtimeApp({ personality, isDoctor, user, usageLimitExceeded, autoStart = false }: OpenAIRealtimeAppProps) {
+function OpenAIRealtimeApp({
+  personality,
+  isDoctor,
+  user,
+  usageLimitExceeded,
+  autoStart = false,
+  conversationTarget = "patient",
+}: OpenAIRealtimeAppProps) {
   const supabase = createClient();
   const userId = user.user_id;
 
@@ -168,9 +181,11 @@ function OpenAIRealtimeApp({ personality, isDoctor, user, usageLimitExceeded, au
   };
 
   const createFirstMessage = () => {
-    return personality?.first_message_prompt
-      ? `Always start the conversation following these instructions from the user: ${personality?.first_message_prompt}`
-      : "The user is initiating a new chat here. Say something!";
+    return buildOpeningTurnPrompt(
+      personality?.first_message_prompt ?? "",
+      conversationTarget,
+      isDoctor,
+    );
   };
 
   const sendSimulatedUserMessage = (text: string) => {
@@ -196,7 +211,10 @@ function OpenAIRealtimeApp({ personality, isDoctor, user, usageLimitExceeded, au
     const sessionUpdateEvent = {
       type: "session.update",
       session: {
-        instructions: personality.character_prompt,
+        instructions: buildCharacterInstructions(
+          personality.character_prompt,
+          conversationTarget,
+        ),
         voice: personality.oai_voice,
       },
     };
@@ -204,11 +222,7 @@ function OpenAIRealtimeApp({ personality, isDoctor, user, usageLimitExceeded, au
     sendClientEvent(sessionUpdateEvent);
 
     if (shouldTriggerResponse) {
-      sendSimulatedUserMessage(
-        isDoctor
-          ? "Ask the doctor if everything is good and how you can help them and their patient."
-          : createFirstMessage()
-      );
+      sendSimulatedUserMessage(createFirstMessage());
     }
   };
 

@@ -2,7 +2,7 @@
 
 import React, { useCallback, useEffect, useRef, useState } from "react";
 import { v4 as uuidv4 } from "uuid";
-import { EndSensitivity, Modality, Part } from "@google/genai";
+import { ActivityHandling, EndSensitivity, Modality } from "@google/genai";
 
 import BottomToolbar from "./components/BottomToolbar";
 import Transcript from "./components/Transcript";
@@ -17,6 +17,11 @@ import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { createClient } from "@/utils/supabase/client";
 import { toast } from "@/components/ui/use-toast";
+import {
+  buildCharacterInstructions,
+  buildOpeningTurnPrompt,
+  ConversationTarget,
+} from "./lib/promptContext";
 
 interface GeminiRealtimeAppProps {
   personality: IPersonality;
@@ -24,9 +29,17 @@ interface GeminiRealtimeAppProps {
   user: IUser;
   usageLimitExceeded: boolean;
   autoStart?: boolean;
+  conversationTarget?: ConversationTarget;
 }
 
-function GeminiRealtimeApp({ personality, isDoctor, user, usageLimitExceeded, autoStart = false }: GeminiRealtimeAppProps) {
+function GeminiRealtimeApp({
+  personality,
+  isDoctor,
+  user,
+  usageLimitExceeded,
+  autoStart = false,
+  conversationTarget = "patient",
+}: GeminiRealtimeAppProps) {
   const userId = user.user_id;
   const supabase = createClient();
 
@@ -50,9 +63,12 @@ function GeminiRealtimeApp({ personality, isDoctor, user, usageLimitExceeded, au
   const geminiInputTranscriptRef = useRef<string>("");
   const geminiOutputTranscriptRef = useRef<string>("");
   const geminiSessionOpenedRef = useRef(false);
+  const geminiInitialPromptSentRef = useRef(false);
+  const geminiAssistantFinishingRef = useRef(false);
 
   const [geminiInputVolume, setGeminiInputVolume] = useState(0);
   const [isAssistantSpeaking, setIsAssistantSpeaking] = useState(false);
+  const [isListeningForUser, setIsListeningForUser] = useState(false);
   const isMobile = useMediaQuery("(max-width: 768px)");
 
   const mergeStreamingTranscript = useCallback((prev: string, next: string) => {
@@ -122,6 +138,14 @@ function GeminiRealtimeApp({ personality, isDoctor, user, usageLimitExceeded, au
     [client]
   );
 
+  const createFirstMessage = useCallback(() => {
+    return buildOpeningTurnPrompt(
+      personality?.first_message_prompt ?? "",
+      conversationTarget,
+      isDoctor,
+    );
+  }, [conversationTarget, isDoctor, personality]);
+
   useEffect(() => {
     if (!autoStart) return;
     if (sessionStatus !== "DISCONNECTED") return;
@@ -140,11 +164,15 @@ function GeminiRealtimeApp({ personality, isDoctor, user, usageLimitExceeded, au
 
     recorder.on("volume", handleVolume);
 
-    if (connected) {
+    const shouldRecord = connected && isListeningForUser && !isAssistantSpeaking;
+
+    if (shouldRecord) {
       recorder.on("data", sendGeminiAudio);
-      recorder.start().catch((error) => {
-        console.error("Failed to start audio recorder", error);
-      });
+      if (!recorder.recording) {
+        recorder.start().catch((error) => {
+          console.error("Failed to start audio recorder", error);
+        });
+      }
     } else {
       recorder.off("data", sendGeminiAudio);
       recorder.stop();
@@ -155,7 +183,7 @@ function GeminiRealtimeApp({ personality, isDoctor, user, usageLimitExceeded, au
       recorder.off("volume", handleVolume);
       recorder.stop();
     };
-  }, [connected, sendGeminiAudio]);
+  }, [connected, isAssistantSpeaking, isListeningForUser, sendGeminiAudio]);
 
   useEffect(() => {
     if (connected) {
@@ -166,6 +194,9 @@ function GeminiRealtimeApp({ personality, isDoctor, user, usageLimitExceeded, au
       }
     } else {
       geminiSessionOpenedRef.current = false;
+      geminiInitialPromptSentRef.current = false;
+      geminiAssistantFinishingRef.current = false;
+      setIsListeningForUser(false);
       if (sessionStatus === "CONNECTED") {
         setSessionStatus("DISCONNECTED");
       }
@@ -179,6 +210,7 @@ function GeminiRealtimeApp({ personality, isDoctor, user, usageLimitExceeded, au
     if (!player) return;
 
     const handleAudio = (data: ArrayBuffer) => {
+      setIsListeningForUser(false);
       setIsAssistantSpeaking(true);
       player.play(data).catch((e) => {
         console.error("Failed to play Gemini audio", e);
@@ -187,14 +219,24 @@ function GeminiRealtimeApp({ personality, isDoctor, user, usageLimitExceeded, au
 
     client.on("audio", handleAudio);
 
-    const finalizeAssistantTurn = async () => {
-      void player.stop();
+    const finalizeAssistantTurn = async (forceStop = false) => {
+      if (geminiAssistantFinishingRef.current) return;
+      geminiAssistantFinishingRef.current = true;
+
+      if (forceStop) {
+        await player.stop();
+      } else {
+        await player.waitForIdle();
+      }
+
       setIsAssistantSpeaking(false);
+      setIsListeningForUser(true);
       if (geminiAssistantMessageIdRef.current) {
         updateTranscriptItemStatus(geminiAssistantMessageIdRef.current, "DONE");
         geminiAssistantMessageIdRef.current = null;
       }
       geminiOutputTranscriptRef.current = "";
+      geminiAssistantFinishingRef.current = false;
     };
 
     const handleInputTranscription = (text: string) => {
@@ -239,7 +281,6 @@ function GeminiRealtimeApp({ personality, isDoctor, user, usageLimitExceeded, au
     };
 
     const handleGenerationComplete = () => {
-      void finalizeAssistantTurn();
       if (geminiUserMessageIdRef.current) {
         updateTranscriptItemStatus(geminiUserMessageIdRef.current, "DONE");
         geminiUserMessageIdRef.current = null;
@@ -250,18 +291,46 @@ function GeminiRealtimeApp({ personality, isDoctor, user, usageLimitExceeded, au
     client.on("inputtranscription", handleInputTranscription);
     client.on("outputtranscription", handleOutputTranscription);
     client.on("generationcomplete", handleGenerationComplete);
-    client.on("turncomplete", finalizeAssistantTurn);
-    client.on("interrupted", finalizeAssistantTurn);
+    const handleTurnComplete = () => {
+      void finalizeAssistantTurn(false);
+    };
+
+    const handleInterrupted = () => {
+      void finalizeAssistantTurn(true);
+    };
+
+    client.on("turncomplete", handleTurnComplete);
+    client.on("interrupted", handleInterrupted);
+
+    const handleSetupComplete = () => {
+      if (geminiInitialPromptSentRef.current) return;
+
+      const openingPrompt = createFirstMessage();
+      geminiInitialPromptSentRef.current = true;
+      setIsListeningForUser(false);
+      addTranscriptMessage(uuidv4().slice(0, 32), "user", openingPrompt, true);
+      client.send({ text: openingPrompt });
+    };
+
+    client.on("setupcomplete", handleSetupComplete);
 
     return () => {
       client.off("audio", handleAudio);
       client.off("inputtranscription", handleInputTranscription);
       client.off("outputtranscription", handleOutputTranscription);
       client.off("generationcomplete", handleGenerationComplete);
-      client.off("turncomplete", finalizeAssistantTurn);
-      client.off("interrupted", finalizeAssistantTurn);
+      client.off("turncomplete", handleTurnComplete);
+      client.off("interrupted", handleInterrupted);
+      client.off("setupcomplete", handleSetupComplete);
     };
-  }, [client, addTranscriptMessage, updateTranscriptMessage, updateTranscriptItemStatus]);
+  }, [
+    client,
+    addTranscriptMessage,
+    createFirstMessage,
+    mergeStreamingTranscript,
+    updateTranscriptMessage,
+    updateTranscriptItemStatus,
+  ]);
 
   useEffect(() => {
     // Intentionally disabled: naive volume-based barge-in triggers on speaker echo.
@@ -294,15 +363,23 @@ function GeminiRealtimeApp({ personality, isDoctor, user, usageLimitExceeded, au
             },
           },
         },
+        // On speaker devices (no headphones), automatic VAD commonly picks up the model
+        // output via the mic and causes self-interruption. Prefer manual turn boundaries.
         realtimeInputConfig: {
           automaticActivityDetection: {
             disabled: false,
             endOfSpeechSensitivity: EndSensitivity.END_SENSITIVITY_LOW,
-            silenceDurationMs: 200,
+            silenceDurationMs: 300,
           },
+          activityHandling: ActivityHandling.NO_INTERRUPTION,
         },
         systemInstruction: {
-          parts: [{ text: personality.character_prompt ?? "" }],
+          parts: [{
+            text: buildCharacterInstructions(
+              personality.character_prompt ?? "",
+              conversationTarget,
+            ),
+          }],
         },
         outputAudioTranscription: {},
         inputAudioTranscription: {},
@@ -314,8 +391,6 @@ function GeminiRealtimeApp({ personality, isDoctor, user, usageLimitExceeded, au
         throw new Error("Failed to connect to Gemini Live");
       }
       setConfig(fullConfig);
-
-      addTranscriptMessage(uuidv4().slice(0, 32), "user", "[Audio message]");
     } catch (error) {
       console.error("[Gemini] Connection failed:", error);
       toast({
@@ -339,6 +414,9 @@ function GeminiRealtimeApp({ personality, isDoctor, user, usageLimitExceeded, au
         geminiAssistantMessageIdRef.current = null;
       }
       geminiSessionOpenedRef.current = false;
+      geminiInitialPromptSentRef.current = false;
+      geminiAssistantFinishingRef.current = false;
+      setIsListeningForUser(false);
       setSessionStatus("DISCONNECTED");
     }
   };
@@ -378,6 +456,9 @@ function GeminiRealtimeApp({ personality, isDoctor, user, usageLimitExceeded, au
       });
       setSessionStatus("DISCONNECTED");
       geminiSessionOpenedRef.current = false;
+      geminiInitialPromptSentRef.current = false;
+      geminiAssistantFinishingRef.current = false;
+      setIsListeningForUser(false);
     };
 
     client.on("error", handleError);

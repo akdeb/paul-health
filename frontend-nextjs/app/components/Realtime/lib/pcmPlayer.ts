@@ -7,6 +7,7 @@ export class PCMPlayer {
   private ctx: AudioContext | null = null;
   private nextTime = 0;
   private sources: Set<AudioBufferSourceNode> = new Set();
+  private idleResolvers: Array<() => void> = [];
 
   constructor(private sampleRate = 24000) {}
 
@@ -46,6 +47,9 @@ export class PCMPlayer {
     this.sources.add(src);
     src.onended = () => {
       this.sources.delete(src);
+      if (this.sources.size === 0) {
+        this.flushIdleResolvers();
+      }
     };
 
     const startAt = Math.max(this.nextTime, ctx.currentTime);
@@ -66,5 +70,24 @@ export class PCMPlayer {
     }
     this.sources.clear();
     this.nextTime = ctx.currentTime;
+    this.flushIdleResolvers();
+  }
+
+  async waitForIdle() {
+    if (this.sources.size === 0) {
+      return;
+    }
+
+    await new Promise<void>((resolve) => {
+      this.idleResolvers.push(resolve);
+    });
+  }
+
+  private flushIdleResolvers() {
+    const resolvers = this.idleResolvers;
+    this.idleResolvers = [];
+    for (const resolve of resolvers) {
+      resolve();
+    }
   }
 }

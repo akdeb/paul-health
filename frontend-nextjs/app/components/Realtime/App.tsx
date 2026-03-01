@@ -10,6 +10,7 @@ import { createClient } from "@/utils/supabase/client";
 import { GeminiAPIProvider } from "./contexts/GeminiAPIContext";
 import { TranscriptProvider } from "./contexts/TranscriptContext";
 import { EventProvider } from "./contexts/EventContext";
+import { ConversationTarget } from "./lib/promptContext";
 
 interface AppProps {
   personalityIdState: string;
@@ -17,9 +18,17 @@ interface AppProps {
   user: IUser;
   usageLimitExceeded: boolean;
   autoStart?: boolean;
+  conversationTarget?: ConversationTarget;
 }
 
-function App({ personalityIdState, isDoctor, user, usageLimitExceeded, autoStart = false }: AppProps) {
+function App({
+  personalityIdState,
+  isDoctor,
+  user,
+  usageLimitExceeded,
+  autoStart = false,
+  conversationTarget = "patient",
+}: AppProps) {
   const supabase = useMemo(() => createClient(), []);
   const [personality, setPersonality] = useState<IPersonality | null>(null);
   const [loading, setLoading] = useState<boolean>(true);
@@ -69,6 +78,7 @@ function App({ personalityIdState, isDoctor, user, usageLimitExceeded, autoStart
               user={user}
               usageLimitExceeded={usageLimitExceeded}
               autoStart={autoStart}
+              conversationTarget={conversationTarget}
             />
           </GeminiAPIProvider>
         </EventProvider>
@@ -85,6 +95,7 @@ function App({ personalityIdState, isDoctor, user, usageLimitExceeded, autoStart
           user={user}
           usageLimitExceeded={usageLimitExceeded}
           autoStart={autoStart}
+          conversationTarget={conversationTarget}
         />
       </EventProvider>
     </TranscriptProvider>
