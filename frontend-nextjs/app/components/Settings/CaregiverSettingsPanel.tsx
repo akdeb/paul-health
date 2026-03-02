@@ -16,6 +16,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import PickLanguage from "../Playground/PickLanguage";
+import { Separator } from "@/components/ui/separator";
 
 interface CaregiverSettingsPanelProps {
   selectedUser: IUser;
@@ -101,7 +102,8 @@ export default function CaregiverSettingsPanel({
         </Button>
       </section>
 
-      <section className="space-y-6 rounded-2xl border border-gray-200 bg-white p-5">
+      <Separator className="my-6" />
+      <section className="space-y-6">
         <div className="space-y-1">
           <h2 className="text-lg font-semibold">Account</h2>
           <p className="text-sm text-gray-500">
