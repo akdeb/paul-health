@@ -38,10 +38,9 @@ declare global {
         avatar_url: string;
         is_premium: boolean;
         email: string;
-        supervisor_name: string;
-        supervisee_name: string;
-        supervisee_persona: string;
-        supervisee_age: number;
+        name: string;
+        patient_id: string;
+        patient?: IPatient;
         session_time: number;
         user_info: UserInfo;
 
@@ -56,6 +55,52 @@ declare global {
         // device
         device?: IDevice;
         device_id: string | null;
+    }
+
+    interface IPatient {
+        patient_id: string;
+        name: string;
+        age: number;
+        about: string;
+        gender: "male" | "female" | "non-binary";
+        address: string;
+        jobs: string[];
+        relations: string[];
+        stories: string[];
+        avoid: string[];
+        caregiver_id: string;
+        timezone: string;
+    }
+
+    interface IPhoto {
+        photo_id: string;
+        url: string;
+        caption: string;
+        type: "profile" | "album";
+        patient_id: string;
+    }
+
+    type CareActivityType =
+        | "guess_flag"
+        | "guess_capital"
+        | "conversation_news"
+        | "medication_reminder"
+        | "memory_prompt";
+
+    interface ICareActivity {
+        activity_id: string;
+        caregiver_id: string;
+        patient_id: string;
+        type: CareActivityType;
+        title: string;
+        instructions: string;
+        cron: string;
+        timezone: string;
+        enabled: boolean;
+        starts_at: string | null;
+        ends_at: string | null;
+        created_at: string;
+        updated_at: string;
     }
 
     type UserInfo =

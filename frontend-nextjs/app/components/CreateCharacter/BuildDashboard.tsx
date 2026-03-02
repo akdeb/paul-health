@@ -14,14 +14,13 @@ import { geminiVoices } from "@/lib/data";
 import EmojiComponent from "./EmojiComponent";
 
 const ACCENT_OPTIONS = [
-  { value: "american", label: "American", emoji: "🇺🇸" },
   { value: "british", label: "British", emoji: "🇬🇧" },
-  { value: "indian", label: "Indian", emoji: "🇮🇳" },
+  { value: "irish", label: "Irish", emoji: "🇮🇪" },
   { value: "australian", label: "Australian", emoji: "🇦🇺" },
   { value: "canadian", label: "Canadian", emoji: "🇨🇦" },
-  { value: "irish", label: "Irish", emoji: "🇮🇪" },
-  { value: "scottish", label: "Scottish", emoji: "🏴" },
+  { value: "american", label: "American", emoji: "🇺🇸" },
   { value: "south_african", label: "South African", emoji: "🇿🇦" },
+  { value: "indian", label: "Indian", emoji: "🇮🇳" },
   { value: "singaporean", label: "Singaporean", emoji: "🇸🇬" },
   { value: "new_zealand", label: "New Zealand", emoji: "🇳🇿" },
 ] as const;
@@ -224,7 +223,7 @@ const SettingsDashboard: React.FC<SettingsDashboardProps> = ({
         title: formData.assistantName,
         character_prompt: formData.customInstructions,
         oai_voice: formData.voice,
-        voice_prompt: `Accent: ${accentText}\nTone: ${toneText}`,
+        voice_prompt: `Speak in the following accent: ${accentText}\nSpeak in the following tone: ${toneText}`,
         first_message_prompt: formData.firstMessagePrompt,
       });
 
@@ -253,8 +252,11 @@ const SettingsDashboard: React.FC<SettingsDashboardProps> = ({
     return (
       <div className="flex flex-col gap-2">
         <div className="flex flex-row gap-4 items-center sm:justify-normal justify-between max-w-screen-sm">
-          <div className="flex flex-row gap-4 items-center w-full">
+          <div className="flex flex-col gap-2 w-full">
             <h1 className="text-lg font-semibold">Agent Settings</h1>
+        <p className="text-sm text-gray-500">
+          Customize your agent&apos;s personality and behavior to fit your needs.
+        </p>
           </div>
         </div>
         {/* <HomePageSubtitles user={selectedUser} page="create" /> */}
@@ -267,7 +269,7 @@ const SettingsDashboard: React.FC<SettingsDashboardProps> = ({
       <Heading />
 
       <form onSubmit={handleSubmit} className="space-y-6 mt-8 w-full pr-1">
-        <div className="space-y-4">
+        <div className="space-y-6">
           <div className="space-y-2">
             <Label htmlFor="assistantName">Assistant name</Label>
             <Input
@@ -285,7 +287,7 @@ const SettingsDashboard: React.FC<SettingsDashboardProps> = ({
             </p>
           </div>
 
-          <div className="space-y-4">
+          <div className="space-y-2">
             <Label htmlFor="voice">Pick a Gemini voice</Label>
             <p className="text-sm text-gray-500">
               Choose a Gemini voice for your assistant.

@@ -53,7 +53,7 @@ const PickLanguage: React.FC<PickLanguageProps> = ({
                 >
                     <Languages size={18} />
                     <FlagComponent flag={languageSelected?.flag} />
-                    {!isMobile && <span>{languageSelected?.name}</span>}
+                    <span>{languageSelected?.name}</span>
                 </SelectTrigger>
                 <SelectContent>
                     {allLanguages.map((language) => (

@@ -57,18 +57,19 @@ export default async function RootLayout({
     }
 
     const dbUser = await getUserById(supabase, user.id);
+    console.log("dbUser", dbUser);
 
     if (!dbUser) {
         redirect("/login");
     }
 
     return (
-        <div className="mx-auto flex w-full max-w-screen-lg flex-1 flex-col gap-2 pb-2 md:flex-row">
+        <div className="mx-auto flex w-full min-w-0 max-w-screen-lg flex-1 flex-col gap-2 pb-2 md:flex-row">
             <aside className="w-full pt-2 sm:py-4 md:fixed md:h-screen md:w-[240px] md:overflow-y-auto">
                 <SidebarNav items={sidebarNavItems} />
             </aside>
-            <main className="flex flex-1 justify-center px-4 sm:py-4 md:ml-[240px]">
-                <div className="w-full max-w-6xl">{children}</div>
+            <main className="flex min-w-0 flex-1 justify-center px-4 sm:py-4 md:ml-[240px]">
+                <div className="w-full min-w-0 max-w-6xl">{children}</div>
             </main>
             <MobileNav items={sidebarNavItems} />
         </div>

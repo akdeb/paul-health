@@ -1,4 +1,5 @@
 import { type SupabaseClient, type User } from "@supabase/supabase-js";
+import { ensurePatientForCaregiver } from "./patients";
 
 export const createUser = async (
     supabase: SupabaseClient,
@@ -12,10 +13,7 @@ export const createUser = async (
         {
             user_id: user.id,
             email: user.email,
-            supervisor_name: user.user_metadata?.name ?? "",
-            supervisee_name: "",
-            supervisee_age: 14,
-            supervisee_persona: "",
+            name: user.user_metadata?.name ?? "",
             personality_id: userProps.personality_id, // selecting default personality
             session_time: 0,
             avatar_url: user.user_metadata?.avatar_url ??
@@ -28,6 +26,13 @@ export const createUser = async (
     if (error) {
         // console.log("error", error);
     }
+
+    await ensurePatientForCaregiver(
+        supabase,
+        user.id,
+        user.user_metadata?.name ?? "",
+        null,
+    );
 };
 
 export const getSimpleUserById = async (
@@ -51,7 +56,7 @@ export const getUserById = async (supabase: SupabaseClient, id: string) => {
     const { data, error } = await supabase
         .from("users")
         .select(
-            `*, personality:personality_id(*), device:devices!users_device_id_fkey(device_id, volume)`,
+            `*, patient:patients!users_patient_id_fkey(*), personality:personality_id(*), device:devices!users_device_id_fkey(volume)`,
         )
         .eq("user_id", id)
         .single();

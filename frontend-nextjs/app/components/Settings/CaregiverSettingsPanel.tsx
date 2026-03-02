@@ -1,7 +1,8 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Check, Info, Loader2, LogOut } from "lucide-react";
+import { useRouter } from "next/navigation";
 
 import { signOutAction } from "@/app/actions";
 import { updateUser } from "@/db/users";
@@ -27,19 +28,25 @@ export default function CaregiverSettingsPanel({
   selectedUser,
   allLanguages,
 }: CaregiverSettingsPanelProps) {
+  const router = useRouter();
   const supabase = createClient();
   const { toast } = useToast();
 
-  const [supervisorName, setSupervisorName] = useState(selectedUser.supervisor_name ?? "");
+  const [supervisorName, setSupervisorName] = useState(selectedUser.name ?? "");
   const [languageState, setLanguageState] = useState(selectedUser.language_code ?? "en-US");
   const [isSaving, setIsSaving] = useState(false);
+
+  useEffect(() => {
+    setSupervisorName(selectedUser.name ?? "");
+    setLanguageState(selectedUser.language_code ?? "en-US");
+  }, [selectedUser.language_code, selectedUser.name]);
 
   const saveCaregiverSettings = async () => {
     setIsSaving(true);
     await updateUser(
       supabase,
       {
-        supervisor_name: supervisorName,
+        name: supervisorName,
         language_code: languageState,
       },
       selectedUser.user_id,
@@ -48,6 +55,7 @@ export default function CaregiverSettingsPanel({
       description: "Caregiver settings saved.",
     });
     setIsSaving(false);
+    router.refresh();
   };
 
   return (
@@ -55,12 +63,15 @@ export default function CaregiverSettingsPanel({
       <section className="space-y-6">
         <div className="space-y-1">
           <h2 className="text-lg font-semibold">Caregiver settings</h2>
+        <p className="text-sm text-gray-500">
+          Customize your name and language settings.
+        </p>
         </div>
 
         <div className="space-y-2">
-          <Label htmlFor="supervisor_name">Caregiver name</Label>
+          <Label htmlFor="name">Caregiver name</Label>
           <Input
-            id="supervisor_name"
+            id="name"
             value={supervisorName}
             onChange={(e) => setSupervisorName(e.target.value)}
             placeholder="e.g. Aria"

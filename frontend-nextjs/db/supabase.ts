@@ -63,6 +63,69 @@ export type Database = {
           },
         ]
       }
+      care_activities: {
+        Row: {
+          activity_id: string
+          caregiver_id: string
+          created_at: string
+          cron: string
+          enabled: boolean
+          ends_at: string | null
+          instructions: string
+          patient_id: string
+          starts_at: string | null
+          timezone: string
+          title: string
+          type: string
+          updated_at: string
+        }
+        Insert: {
+          activity_id?: string
+          caregiver_id: string
+          created_at?: string
+          cron: string
+          enabled?: boolean
+          ends_at?: string | null
+          instructions?: string
+          patient_id: string
+          starts_at?: string | null
+          timezone?: string
+          title: string
+          type: string
+          updated_at?: string
+        }
+        Update: {
+          activity_id?: string
+          caregiver_id?: string
+          created_at?: string
+          cron?: string
+          enabled?: boolean
+          ends_at?: string | null
+          instructions?: string
+          patient_id?: string
+          starts_at?: string | null
+          timezone?: string
+          title?: string
+          type?: string
+          updated_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "care_activities_caregiver_id_fkey"
+            columns: ["caregiver_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["user_id"]
+          },
+          {
+            foreignKeyName: "care_activities_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["patient_id"]
+          },
+        ]
+      }
       devices: {
         Row: {
           created_at: string
@@ -118,6 +181,97 @@ export type Database = {
           type?: string | null
         }
         Relationships: []
+      }
+      patients: {
+        Row: {
+          about: string
+          address: string
+          age: number
+          avoid: string[]
+          caregiver_id: string
+          created_at: string
+          gender: string
+          jobs: string[]
+          name: string
+          patient_id: string
+          relations: string[]
+          stories: string[]
+          timezone: string
+        }
+        Insert: {
+          about?: string
+          address?: string
+          age?: number
+          avoid?: string[]
+          caregiver_id: string
+          created_at?: string
+          gender?: string
+          jobs?: string[]
+          name?: string
+          patient_id?: string
+          relations?: string[]
+          stories?: string[]
+          timezone?: string
+        }
+        Update: {
+          about?: string
+          address?: string
+          age?: number
+          avoid?: string[]
+          caregiver_id?: string
+          created_at?: string
+          gender?: string
+          jobs?: string[]
+          name?: string
+          patient_id?: string
+          relations?: string[]
+          stories?: string[]
+          timezone?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "patients_caregiver_id_fkey"
+            columns: ["caregiver_id"]
+            isOneToOne: false
+            referencedRelation: "users"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      photos: {
+        Row: {
+          caption: string
+          created_at: string
+          patient_id: string
+          photo_id: string
+          type: string
+          url: string
+        }
+        Insert: {
+          caption?: string
+          created_at?: string
+          patient_id: string
+          photo_id?: string
+          type?: string
+          url: string
+        }
+        Update: {
+          caption?: string
+          created_at?: string
+          patient_id?: string
+          photo_id?: string
+          type?: string
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "photos_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["patient_id"]
+          },
+        ]
       }
       insights: {
         Row: {
@@ -307,12 +461,10 @@ export type Database = {
           language_code: string
           modules: string[] | null
           most_recent_chat_group_id: string | null
+          patient_id: string | null
           personality_id: string
           session_time: number
-          supervisee_age: number
-          supervisee_name: string
-          supervisee_persona: string
-          supervisor_name: string
+          name: string
           toy_name: string | null
           user_id: string
           user_info: Json
@@ -326,12 +478,10 @@ export type Database = {
           language_code?: string
           modules?: string[] | null
           most_recent_chat_group_id?: string | null
+          patient_id?: string | null
           personality_id?: string
           session_time?: number
-          supervisee_age?: number
-          supervisee_name: string
-          supervisee_persona?: string
-          supervisor_name: string
+          name: string
           toy_name?: string | null
           user_id?: string
           user_info?: Json
@@ -345,12 +495,10 @@ export type Database = {
           language_code?: string
           modules?: string[] | null
           most_recent_chat_group_id?: string | null
+          patient_id?: string | null
           personality_id?: string
           session_time?: number
-          supervisee_age?: number
-          supervisee_name?: string
-          supervisee_persona?: string
-          supervisor_name?: string
+          name?: string
           toy_name?: string | null
           user_id?: string
           user_info?: Json
@@ -363,6 +511,13 @@ export type Database = {
             isOneToOne: false
             referencedRelation: "languages"
             referencedColumns: ["code"]
+          },
+          {
+            foreignKeyName: "users_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["patient_id"]
           },
           {
             foreignKeyName: "users_personality_id_fkey"

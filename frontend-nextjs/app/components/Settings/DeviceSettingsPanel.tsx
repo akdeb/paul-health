@@ -2,6 +2,7 @@
 
 import { useCallback, useEffect, useState } from "react";
 import _ from "lodash";
+import { useRouter } from "next/navigation";
 
 import { connectUserToDevice } from "@/app/actions";
 import { doesUserHaveADevice, updateDevice } from "@/db/devices";
@@ -21,6 +22,7 @@ const skipDeviceRegistration =
 export default function DeviceSettingsPanel({
   selectedUser,
 }: DeviceSettingsPanelProps) {
+  const router = useRouter();
   const supabase = createClient();
   const [isConnected, setIsConnected] = useState(false);
   const [deviceCode, setDeviceCode] = useState("");
@@ -35,6 +37,10 @@ export default function DeviceSettingsPanel({
     void checkIfUserHasDevice();
   }, [checkIfUserHasDevice]);
 
+  useEffect(() => {
+    setVolume([selectedUser.device?.volume ?? 50]);
+  }, [selectedUser.device?.volume]);
+
   const debouncedUpdateVolume = _.debounce(async (nextVolume: number) => {
     if (selectedUser.device?.device_id) {
       await updateDevice(
@@ -42,6 +48,7 @@ export default function DeviceSettingsPanel({
         { volume: nextVolume },
         selectedUser.device.device_id,
       );
+      router.refresh();
     }
   }, 1000);
 
@@ -88,6 +95,10 @@ export default function DeviceSettingsPanel({
               const result = await connectUserToDevice(selectedUser.user_id, deviceCode);
               if (!result) {
                 setError("Error registering device");
+              } else {
+                setError("");
+                setDeviceCode("");
+                router.refresh();
               }
               void checkIfUserHasDevice();
             }}

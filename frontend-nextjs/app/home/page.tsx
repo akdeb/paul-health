@@ -49,7 +49,7 @@ export default async function Home() {
         <div className="space-y-6 pb-10">
             <section className="relative overflow-hidden rounded-3xl border-2 border-gray-200 bg-gray-50 p-6 sm:p-8">
 <div className="relative z-10">
-                <h1 className="font-semibold text-3xl text-[#243640] sm:text-4xl">Welcome back, {dbUser.supervisor_name || "Caregiver"}</h1>
+                <h1 className="font-semibold text-3xl text-[#243640] sm:text-4xl">Welcome back, {dbUser.name || "Caregiver"}</h1>
                 <p className="mt-2 max-w-2xl text-[#42535d]">
                     This dashboard focuses on live status and actions. Care configuration lives in the Care Plan tab.
                 </p>
@@ -80,23 +80,6 @@ export default async function Home() {
             </section>
 
             <section className="grid gap-4 lg:grid-cols-2">
-                <FeatureCard
-                    title="Safeguarding queue"
-                    icon={<BellRing className="h-5 w-5" />}
-                    titleClassName="text-2xl"
-                    description="Recent events that may require immediate caregiver follow-up."
-                    contentClassName="space-y-3"
-                >
-                        <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700">
-                            <p className="font-semibold">High priority · 10:14 AM</p>
-                            <p className="mt-1">Repeated confusion signals and distress language detected for ~6 minutes.</p>
-                        </div>
-                        <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 text-sm text-gray-700">
-                            <p className="font-semibold">Info · 9:20 AM</p>
-                            <p className="mt-1">Morning conversation ended in stable mood after orientation prompts.</p>
-                        </div>
-                </FeatureCard>
-
                 <FeatureCard
                     title="Quick actions"
                     icon={<ShieldCheck className="h-5 w-5" />}

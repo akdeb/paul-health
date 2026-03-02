@@ -36,9 +36,6 @@ const Steps: React.FC<{
                         await updateUser(
                             supabase,
                             {
-                            supervisee_age: values.supervisee_age,
-                            supervisee_name: values.supervisee_name,
-                            supervisee_persona: values.supervisee_persona,
                             user_info: {
                                 user_type: userType,
                                 user_metadata: values,
