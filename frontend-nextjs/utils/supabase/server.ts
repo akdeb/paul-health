@@ -12,12 +12,12 @@ export const createClient = (opts?: SupabaseClientOptions<"public">) => {
       ...opts,
       cookies: {
         getAll() {
-          return cookieStore.getAll();
+          return cookieStore.then((store) => store.getAll());
         },
         setAll(cookiesToSet) {
           try {
             cookiesToSet.forEach(({ name, value, options }) => {
-              cookieStore.set(name, value, options);
+              cookieStore.then((store) => store.set(name, value, options));
             });
           } catch (error) {
             // The `set` method was called from a Server Component.

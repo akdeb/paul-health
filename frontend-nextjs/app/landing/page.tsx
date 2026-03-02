@@ -56,7 +56,7 @@ const howItWorks = [
 // }
 
 
-export default function LandingPage() {
+export default async function LandingPage() {
     return (
         <div className="min-h-screen bg-[#fff9f3] text-[#20303a]">
             <main>
@@ -113,7 +113,7 @@ export default function LandingPage() {
 
                 <section className="container mx-auto max-w-6xl px-4 py-14 md:px-6">
                     <div className="mb-8 max-w-2xl">
-                        <h2 className="font-[var(--font-inter-tight)] text-3xl font-bold text-[#1e2f39] md:text-4xl">Designed for real caregiver workflows</h2>
+                        <h2 className="text-3xl font-bold text-[#1e2f39] md:text-4xl">Designed for real caregiver workflows</h2>
                     </div>
                     <div className="grid gap-5 md:grid-cols-3">
                         {coreBenefits.map((benefit) => (
@@ -129,7 +129,7 @@ export default function LandingPage() {
                 <section className="border-y border-[#ffd9c7] bg-[#ff7d66] py-14 text-white">
                     <div className="container mx-auto max-w-6xl px-4 md:px-6">
                         <p className="mb-3 text-sm uppercase tracking-[0.15em] text-[#fff4d9]">Care Path</p>
-                        <h2 className="mb-10 font-[var(--font-inter-tight)] text-3xl font-bold text-white md:text-4xl">From setup to everyday support</h2>
+                        <h2 className="mb-10 text-3xl font-bold text-white md:text-4xl">From setup to everyday support</h2>
                         <div className="grid gap-4 md:grid-cols-3">
                             {howItWorks.map((item) => (
                                 <article key={item.title} className="rounded-2xl border border-white/30 bg-white/15 p-6 backdrop-blur-sm">

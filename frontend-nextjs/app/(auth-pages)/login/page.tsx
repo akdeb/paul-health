@@ -1,38 +1,36 @@
 import { createClient } from "@/utils/supabase/server";
 import { redirect } from "next/navigation";
 import { SubmitButton } from "./submit-button";
-import {
-  Card,
-  CardContent,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Label } from "@/components/ui/label";
 
-interface LoginProps {
-  searchParams?: { [key: string]: string | string[] | undefined };
-}
+type SearchParams = Record<string, string | string[] | undefined>;
 
-export default async function Login({ searchParams }: LoginProps) {
+export default async function Login({
+  searchParams,
+}: {
+  searchParams?: Promise<SearchParams>;
+}) {
+  const sp = (await searchParams) ?? {};
+  const message = typeof sp.message === "string" ? sp.message : undefined;
+
   const signInOrSignUp = async (formData: FormData) => {
     "use server";
 
-    const email = formData.get("email") as string;
-    const password = formData.get("password") as string;
+    const email = String(formData.get("email") ?? "");
+    const password = String(formData.get("password") ?? "");
     const supabase = createClient();
 
-    // Try to sign in first
-    const { error: signInError } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
+    const { error } = await supabase.auth.signInWithPassword({ email, password });
 
-    // If sign in succeeds, redirect to home
-    if (!signInError) {
-      return redirect("/home");
-    }
+    if (!error) redirect("/home");
 
-    return redirect("/login?message=Paul is currently in beta. Please contact us to get access.");
+    redirect(
+      "/login?message=" +
+        encodeURIComponent(
+          "Paul is currently in beta. Please contact us to get access.",
+        ),
+    );
   };
 
   return (
@@ -45,19 +43,15 @@ export default async function Login({ searchParams }: LoginProps) {
         </CardHeader>
         <CardContent className="grid gap-4">
           <form className="flex-1 flex flex-col w-full justify-center gap-4">
-            <Label className="text-md" htmlFor="email">
-              Email
-            </Label>
+            <Label className="text-md" htmlFor="email">Email</Label>
             <input
               className="rounded-md px-4 py-2 bg-inherit border"
               name="email"
               placeholder="you@example.com"
               required
             />
-            <Label className="text-md" htmlFor="email">
-              Password
-            </Label>
 
+            <Label className="text-md" htmlFor="password">Password</Label>
             <input
               className="rounded-md px-4 py-2 bg-inherit border"
               type="password"
@@ -73,9 +67,10 @@ export default async function Login({ searchParams }: LoginProps) {
             >
               Continue with Email
             </SubmitButton>
-            {searchParams?.message && (
+
+            {message && (
               <p className="p-4 rounded-md border bg-green-50 border-green-400 text-gray-900 text-center text-sm">
-                {searchParams.message}
+                {message}
               </p>
             )}
           </form>

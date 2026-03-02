@@ -346,9 +346,9 @@ INSERT INTO public.languages (language_id, created_at, code, name, flag) VALUES 
 
 -- Insert data into the public.users table
 INSERT INTO
-public.users (user_id, supervisor_name, is_premium, personality_id, email, session_time, supervisee_name, supervisee_persona, supervisee_age, language_code)
+public.users (user_id, name, is_premium, personality_id, email, session_time, language_code)
 VALUES
-('5af62b0e-3da4-4c44-adf7-5b1b7c9c4cb6', 'Aria', true,'a1c073e6-653d-40cf-acc1-891331689409', 'admin@paulhealth.com', 0, 'Tom', 'Tom loves playing guitar and enjoys watching Agadmator', 10, 'en-US');
+('5af62b0e-3da4-4c44-adf7-5b1b7c9c4cb6', 'Aria', true,'a1c073e6-653d-40cf-acc1-891331689409', 'admin@paulhealth.com', 0, 'en-US');
 
 -- -- Add the foreign key constraint to the public.users table
 -- ALTER TABLE public.users

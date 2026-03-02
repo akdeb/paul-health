@@ -136,10 +136,7 @@ declare global {
         avatar_url: string;
         is_premium: boolean;
         email: string;
-        supervisor_name: string;
-        supervisee_name: string;
-        supervisee_persona: string;
-        supervisee_age: number;
+        name: string;
         personality_id: string;
         personality?: IPersonality;
         language: ILanguage;

@@ -217,10 +217,7 @@ COMMENT ON COLUMN "public"."personalities"."is_story" IS 'can tell stories';
 CREATE TABLE IF NOT EXISTS "public"."users" (
     "user_id" "uuid" DEFAULT "gen_random_uuid"() NOT NULL,
     "created_at" timestamp with time zone DEFAULT "now"() NOT NULL,
-    "supervisor_name" "text" NOT NULL,
-    "supervisee_name" "text" NOT NULL,
-    "supervisee_persona" "text" DEFAULT ''::"text" NOT NULL,
-    "supervisee_age" smallint DEFAULT '3'::smallint NOT NULL,
+    "name" "text" NOT NULL,
     "email" "text" DEFAULT ''::"text" NOT NULL,
     "session_time" integer DEFAULT 0 NOT NULL,
     "avatar_url" "text" DEFAULT ''::"text" NOT NULL,
