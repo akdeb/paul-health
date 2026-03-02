@@ -41,19 +41,20 @@ export function SidebarNav({ className, items, ...props }: SidebarNavProps) {
                 if (item.isPrimary) {
                     return primaryItem(item);
                 }
+                const isActive = pathname === item.href || (pathname.startsWith(item.href) && item.href !== "/home");
                 return (
                     <Link
                         key={item.href}
                         href={item.href}
                         className={cn(
                             buttonVariants({ variant: "ghost" }),
-                            pathname === item.href ? "bg-muted" : "",
+                            isActive ? "bg-muted" : "",
                             "justify-start rounded-full text-sm sm:text-xl text-normal text-stone-700"
                         )}
                     >
                         <span className="mr-2">{item.icon}</span>
                         {item.title}
-                        {pathname === item.href && (
+                        {isActive && (
                             <Dot className="hidden sm:block flex-shrink-0" size={36} />
                         )}
                     </Link>

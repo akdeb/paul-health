@@ -1,7 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/utils/supabase/server";
 import { SidebarNav } from "../components/Nav/SidebarNavItems";
-import { LayoutDashboard, ClipboardList, Settings, PersonStanding, User, Plus, Brain } from "lucide-react";
+import { LayoutDashboard, ClipboardList, Settings, PersonStanding, User, Plus, Brain, SquareCheckBig } from "lucide-react";
 import { Metadata } from "next";
 import { getOpenGraphMetadata } from "@/lib/utils";
 import { MobileNav } from "../components/Nav/MobileNav";
@@ -30,14 +30,14 @@ const sidebarNavItems: SidebarNavItem[] = [
         icon: <ClipboardList size={ICON_SIZE} />,
     },
 {
-    title: "AI Settings",
-    href: "/home/ai-settings",
-    icon: <Brain size={ICON_SIZE} />,
+    title: "Actions",
+    href: "/home/actions",
+    icon: <SquareCheckBig size={ICON_SIZE} />,
 },
     {
-        title: "Profile",
+        title: "Settings",
         href: "/home/settings",
-        icon: <User size={ICON_SIZE} />,
+        icon: <Settings size={ICON_SIZE} />,
     },
 ];
 

@@ -88,7 +88,7 @@ export function NavbarDropdownMenu({ user }: NavbarMenuButtonProps) {
                                 </Link>
                             </DropdownMenuItem>
                             <DropdownMenuItem>
-                                <Link href="/home/settings" className="flex w-full flex-row gap-2">
+                                <Link href="/home/settings/patient" className="flex w-full flex-row gap-2">
                                     <Settings size={ICON_SIZE} />
                                     <span>Patient</span>
                                 </Link>

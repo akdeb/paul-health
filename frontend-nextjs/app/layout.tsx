@@ -343,7 +343,7 @@ export default async function RootLayout({
                     }}
                 />
             </head>
-            <body className="bg-background text-foreground flex flex-col bg-white font-karla">
+            <body className="min-h-screen bg-background text-foreground flex flex-col bg-white font-karla">
                 <NextTopLoader showSpinner={false} color="orange" />
 
                 {/* <ThemeProvider
@@ -352,9 +352,11 @@ export default async function RootLayout({
                     enableSystem
                     disableTransitionOnChange
                 > */}
-                <main className="flex-grow mx-auto w-full flex flex-col">
+                <main className="mx-auto flex min-h-screen w-full flex-1 flex-col">
                     <Navbar user={dbUser ?? null} />
-                    {children}
+                    <div className="flex-1">
+                        {children}
+                    </div>
                     <Footer />
                 </main>
                 {/* <Analytics /> */}

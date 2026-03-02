@@ -58,7 +58,7 @@ export default async function Home() {
                         <Link href="/home/care-plan">Open Care Plan</Link>
                     </Button>
                     <Button asChild variant="outline">
-                        <Link href="/home/settings">Patient</Link>
+                        <Link href="/home/settings/patient">Patient</Link>
                     </Button>
                 </div>
 </div>
@@ -105,8 +105,8 @@ export default async function Home() {
                 >
                         <div className="flex flex-wrap gap-3">
                             <Button asChild variant="primary"><Link href="/home/care-plan">Adjust care rules</Link></Button>
-                            <Button asChild variant="outline"><Link href="/home/ai-settings">Add companion feature</Link></Button>
-                            <Button asChild variant="outline"><Link href="/home/settings"><PhoneCall className="mr-2 h-4 w-4" />Update contacts</Link></Button>
+                            <Button asChild variant="outline"><Link href="/home/settings/ai">Add companion feature</Link></Button>
+                            <Button asChild variant="outline"><Link href="/home/settings/caregiver"><PhoneCall className="mr-2 h-4 w-4" />Update contacts</Link></Button>
                         </div>
                 </FeatureCard>
             </section>

@@ -49,7 +49,7 @@ const PickLanguage: React.FC<PickLanguageProps> = ({
             >
                 <SelectTrigger
                     disabled={isDisabled}
-                    className="rounded-full gap-2 w-fit  [&>:last-child]:hidden sm:[&>:last-child]:block"
+                    className="rounded-md gap-2 w-fit  [&>:last-child]:hidden sm:[&>:last-child]:block"
                 >
                     <Languages size={18} />
                     <FlagComponent flag={languageSelected?.flag} />

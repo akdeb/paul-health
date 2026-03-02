@@ -254,7 +254,7 @@ const SettingsDashboard: React.FC<SettingsDashboardProps> = ({
       <div className="flex flex-col gap-2">
         <div className="flex flex-row gap-4 items-center sm:justify-normal justify-between max-w-screen-sm">
           <div className="flex flex-row gap-4 items-center w-full">
-            <h1 className="text-3xl font-normal">Agent Settings</h1>
+            <h1 className="text-lg font-semibold">Agent Settings</h1>
           </div>
         </div>
         {/* <HomePageSubtitles user={selectedUser} page="create" /> */}
@@ -435,8 +435,9 @@ const SettingsDashboard: React.FC<SettingsDashboardProps> = ({
 
         <Button
           variant="default"
-          className="flex flex-row gap-2 items-center ml-auto"
+          className="flex flex-row gap-2 items-center mr-auto"
           type="submit"
+size="sm"
           disabled={
             isSubmitting ||
             formData.assistantName === "" ||
@@ -447,7 +448,7 @@ const SettingsDashboard: React.FC<SettingsDashboardProps> = ({
             formData.firstMessagePrompt === ""
           }
         >
-          {isSubmitting ? "Updating..." : "Update"} {!isSubmitting && <Check className="w-4 h-4" />}
+          {isSubmitting ? "Saving..." : "Save"} {!isSubmitting && <Check className="w-4 h-4" />}
         </Button>
       </form>
     </div>
