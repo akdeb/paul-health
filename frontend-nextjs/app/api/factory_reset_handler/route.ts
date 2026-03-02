@@ -6,7 +6,7 @@ import { createClient } from '@/utils/supabase/server';
 export async function POST(req: Request) {
     try {
         const { authToken } = await req.json();
-        const supabase = createClient({
+        const supabase = await createClient({
             global: {
                 headers: {
                     Authorization: `Bearer ${authToken}`,

@@ -2,7 +2,7 @@
 "use client";
 
 import { Progress } from "@/components/ui/progress";
-import React from "react";
+import React, { useMemo } from "react";
 import GeneralUserForm from "../Settings/UserForm";
 import { useRouter } from "next/navigation";
 import { createClient } from "@/utils/supabase/client";
@@ -13,7 +13,7 @@ const Steps: React.FC<{
     selectedUser?: IUser;
     userId: string;
 }> = ({ selectedUser, userId }) => {
-    const supabase = createClient();
+    const supabase = useMemo(() => createClient(), []);
     const router = useRouter();
     const [progress, setProgress] = React.useState(50);
     const [step, setStep] = React.useState(1);

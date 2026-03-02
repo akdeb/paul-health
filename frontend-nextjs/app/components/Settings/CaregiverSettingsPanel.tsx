@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Check, Info, Loader2, LogOut } from "lucide-react";
 import { useRouter } from "next/navigation";
 
@@ -29,7 +29,7 @@ export default function CaregiverSettingsPanel({
   allLanguages,
 }: CaregiverSettingsPanelProps) {
   const router = useRouter();
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
   const { toast } = useToast();
 
   const [supervisorName, setSupervisorName] = useState(selectedUser.name ?? "");

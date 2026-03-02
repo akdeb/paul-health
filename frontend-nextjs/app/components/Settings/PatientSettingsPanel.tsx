@@ -48,7 +48,7 @@ export default function PatientSettingsPanel({
   selectedUser,
 }: PatientSettingsPanelProps) {
   const router = useRouter();
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
   const { toast } = useToast();
   const patient = selectedUser.patient;
 

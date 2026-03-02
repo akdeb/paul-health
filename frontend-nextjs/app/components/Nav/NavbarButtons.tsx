@@ -1,7 +1,6 @@
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { NavbarDropdownMenu } from "./NavbarDropdownMenu";
-import PremiumBadge from "../PremiumBadge";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { CalendarCheck } from "lucide-react";
 
@@ -22,11 +21,6 @@ const NavbarButtons: React.FC<NavbarButtonsProps> = ({
                 isHome ? "gap-2" : "sm:gap-2"
             }`}
         >
-            {isHome && user && (
-                <div>
-                    <PremiumBadge currentUserId={user.user_id} />
-                </div>
-            )}
             {!isHome && !isMobile && (
                 <Link href={"mailto:miguel@studiomorfar.com"} passHref tabIndex={-1}>
                     <Button

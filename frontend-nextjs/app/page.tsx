@@ -6,7 +6,7 @@ import { createClient } from "@/utils/supabase/server";
 import LandingImage from "./components/LandingPage/LandingImage";
 
 export default async function LandingPage() {
-    const supabase = createClient();
+    const supabase = await createClient();
 
     const {
         data: { user },

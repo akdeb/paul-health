@@ -16,11 +16,9 @@ import {
 import "./globals.css";
 import { createClient } from "@/utils/supabase/server";
 import { Toaster } from "@/components/ui/toaster";
-import { Analytics } from "@vercel/analytics/react";
 import Footer from "./components/Footer";
 import { Metadata, Viewport } from "next";
 import NextTopLoader from "nextjs-toploader";
-import { GoogleAnalytics } from "@next/third-parties/google";
 import { Karla } from "next/font/google";
 
 const karla = Karla({
@@ -315,7 +313,7 @@ export default async function RootLayout({
 }: {
     children: React.ReactNode;
 }) {
-    const supabase = createClient();
+    const supabase = await createClient();
 
     const {
         data: { user },

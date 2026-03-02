@@ -1,4 +1,3 @@
-import FluidAISpeakingAnimation from "../components/Realtime/Animation";
 import FluidBubbleAnimation from "../components/Realtime/Animation1";
 
 export default async function Home() {

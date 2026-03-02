@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import _ from "lodash";
 import { useRouter } from "next/navigation";
 
@@ -23,7 +23,7 @@ export default function DeviceSettingsPanel({
   selectedUser,
 }: DeviceSettingsPanelProps) {
   const router = useRouter();
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
   const [isConnected, setIsConnected] = useState(false);
   const [deviceCode, setDeviceCode] = useState("");
   const [error, setError] = useState("");

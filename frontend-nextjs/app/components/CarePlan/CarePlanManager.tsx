@@ -431,7 +431,7 @@ function CareActivityEditor({
   onDeleted: (activityId: string) => void;
   onSaved: (activity: ICareActivity) => void;
 }) {
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
   const { toast } = useToast();
   const [isSaving, setIsSaving] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);

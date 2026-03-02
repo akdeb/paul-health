@@ -13,7 +13,7 @@ export const loginWithGoogle = async (
     toy_id: string,
     personality_id: string
 ) => {
-    const supabase = createClient();
+    const supabase = await createClient();
 
     const redirectTo = `${location.origin}/auth/callback`;
 

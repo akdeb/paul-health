@@ -1,9 +1,9 @@
 import { createServerClient } from "@supabase/ssr";
-import { SupabaseClientOptions } from "@supabase/supabase-js";
+import type { SupabaseClientOptions } from "@supabase/supabase-js";
 import { cookies } from "next/headers";
 
-export const createClient = (opts?: SupabaseClientOptions<"public">) => {
-  const cookieStore = cookies();
+export const createClient = async (opts?: SupabaseClientOptions<"public">) => {
+  const cookieStore = await cookies();
 
   return createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -12,17 +12,16 @@ export const createClient = (opts?: SupabaseClientOptions<"public">) => {
       ...opts,
       cookies: {
         getAll() {
-          return cookieStore.then((store) => store.getAll());
+          return cookieStore.getAll();
         },
         setAll(cookiesToSet) {
           try {
             cookiesToSet.forEach(({ name, value, options }) => {
-              cookieStore.then((store) => store.set(name, value, options));
+              cookieStore.set(name, value, options);
             });
-          } catch (error) {
-            // The `set` method was called from a Server Component.
-            // This can be ignored if you have middleware refreshing
-            // user sessions.
+          } catch {
+            // Called from a Server Component where setting cookies is disallowed.
+            // OK if you refresh sessions via proxy/middleware.
           }
         },
       },

@@ -37,7 +37,7 @@ const createSupabaseToken = (
 };
 
 const getUserByMacAddress = async (macAddress: string) => {
-    const supabase = createClient();
+    const supabase = await createClient();
     const { data, error } = await supabase.from("devices").select(
         "*, user:user_id(*)",
     ).eq("mac_address", macAddress).single();
@@ -48,7 +48,7 @@ const getUserByMacAddress = async (macAddress: string) => {
 };
 
 const getDevUser = async () => {
-    const supabase = createClient();
+    const supabase = await createClient();
     const { data, error } = await supabase.from("users").select("*").eq(
         "email",
         "admin@paulhealth.com",

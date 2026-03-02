@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useMemo, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -64,7 +64,7 @@ type FormData = z.infer<typeof formSchema>;
 const SettingsDashboard: React.FC<SettingsDashboardProps> = ({
   selectedUser,
 }) => {
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [personality, setPersonality] = useState<IPersonality | null>(

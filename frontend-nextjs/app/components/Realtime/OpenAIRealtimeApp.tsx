@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { v4 as uuidv4 } from "uuid";
 
@@ -41,7 +41,7 @@ function OpenAIRealtimeApp({
   autoStart = false,
   conversationTarget = "patient",
 }: OpenAIRealtimeAppProps) {
-  const supabase = createClient();
+  const supabase = useMemo(() => createClient(), []);
   const userId = user.user_id;
 
   const { transcriptItems, addTranscriptMessage, addTranscriptBreadcrumb } = useTranscript();

@@ -6,7 +6,7 @@ import { getUserById } from "@/db/users";
 import { createClient } from "@/utils/supabase/server";
 
 export async function getSettingsPageData() {
-  const supabase = createClient();
+  const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();

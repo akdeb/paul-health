@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { v4 as uuidv4 } from "uuid";
 import { ActivityHandling, EndSensitivity, Modality } from "@google/genai";
 
@@ -41,8 +41,7 @@ function GeminiRealtimeApp({
   conversationTarget = "patient",
 }: GeminiRealtimeAppProps) {
   const userId = user.user_id;
-  const supabase = createClient();
-
+  const supabase = useMemo(() => createClient(), []);
   const {
     addTranscriptMessage,
     addTranscriptBreadcrumb,

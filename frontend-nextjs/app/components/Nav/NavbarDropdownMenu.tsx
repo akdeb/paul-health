@@ -16,7 +16,6 @@ import {
     DropdownMenuSeparator,
     DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import PremiumBadge from "../PremiumBadge";
 import { useEffect, useState } from "react";
 import { isPremiumUser } from "@/app/actions";
 import { DropdownMenuLabel } from "@radix-ui/react-dropdown-menu";
@@ -66,12 +65,6 @@ export function NavbarDropdownMenu({ user }: NavbarMenuButtonProps) {
                 side="bottom"
                 align="end"
             >
-                {!!user && premiumUser ? (
-                    <DropdownMenuLabel className="flex w-full justify-center">
-                        <PremiumBadge currentUserId={user.user_id} displayText />
-                    </DropdownMenuLabel>
-                ) : null}
-
                 <DropdownMenuGroup>
                     {user ? (
                         <>
