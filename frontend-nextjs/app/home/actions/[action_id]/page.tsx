@@ -1,5 +1,5 @@
 import { notFound, redirect } from "next/navigation";
-import { Metadata } from "next";
+import type { Metadata } from "next";
 import { getOpenGraphMetadata } from "@/lib/utils";
 import { createClient } from "@/utils/supabase/server";
 import { getUserById } from "@/db/users";
@@ -12,36 +12,32 @@ export const metadata: Metadata = {
   ...getOpenGraphMetadata("Action Transcript"),
 };
 
-export default async function ActionTranscriptPage({
-  params,
-}: {
-  params: { action_id: string };
-}) {
-  const { action_id } = params;
+type PageProps = {
+  params: Promise<{ action_id: string }>;
+};
+
+export default async function ActionTranscriptPage({ params }: PageProps) {
+  const { action_id } = await params;
+
   const supabase = await createClient();
   const {
     data: { user },
   } = await supabase.auth.getUser();
 
-  if (!user) {
-    redirect("/login");
-  }
+  if (!user) redirect("/login");
 
   const dbUser = await getUserById(supabase, user.id);
-  if (!dbUser) {
-    redirect("/login");
-  }
+  if (!dbUser) redirect("/login");
 
   const action = await getActionById(supabase, action_id, dbUser.user_id);
-  if (!action) {
-    notFound();
-  }
+  if (!action) notFound();
 
-  if (action.type !== "web_chat" && action.type !== "device_chat") {
-    notFound();
-  }
+  if (action.type !== "web_chat" && action.type !== "device_chat") notFound();
 
-  const conversations = await dbGetConversationsByActionId(supabase, action.action_id);
+  const conversations = await dbGetConversationsByActionId(
+    supabase,
+    action.action_id
+  );
 
   return <ActionTranscriptView action={action} conversations={conversations} />;
 }
