@@ -5,7 +5,6 @@ import { TranscriptItem } from "@/app/components/Realtime/types";
 import Image from "next/image";
 import { useTranscript } from "@/app/components/Realtime/contexts/TranscriptContext";
 import { getPersonalityImageSrc } from "@/lib/utils";
-import { ArrowRight } from "lucide-react";
 import { dbInsertTranscriptItem } from "@/db/conversations";
 import { SupabaseClient } from "@supabase/supabase-js";
 import { EmojiComponent } from "../../Playground/EmojiImage";
@@ -16,7 +15,7 @@ export interface TranscriptProps {
   onSendMessage: () => void;
   canSend: boolean;
   personality: IPersonality;
-  userId: string;
+  actionId: string | null;
   isDoctor: boolean;
   supabase: SupabaseClient;
 }
@@ -27,15 +26,16 @@ function Transcript({
   onSendMessage,
   canSend,
   personality,
-  userId,
+  actionId,
   isDoctor,
   supabase, 
 }: TranscriptProps) {
   const { transcriptItems, toggleTranscriptItemExpand } = useTranscript();
   const transcriptRef = useRef<HTMLDivElement | null>(null);
-  const [prevLogs, setPrevLogs] = useState<TranscriptItem[]>([]);
   const [justCopied, setJustCopied] = useState(false);
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const insertedTranscriptIdsRef = useRef<Set<string>>(new Set());
+  const conversationIdsRef = useRef<Map<string, string>>(new Map());
 
   function scrollToBottom() {
     if (transcriptRef.current) {
@@ -44,46 +44,30 @@ function Transcript({
   }
 
   useEffect(() => {
-    const hasNewMessage = transcriptItems.length > prevLogs.length;
-    const hasUpdatedMessage = transcriptItems.some((newItem, index) => {
-      const oldItem = prevLogs[index];
-      return (
-        oldItem &&
-        (newItem.title !== oldItem.title || newItem.data !== oldItem.data)
+    scrollToBottom();
+
+    transcriptItems.forEach((item) => {
+      if (
+        !actionId ||
+        item.type !== "MESSAGE" ||
+        item.isHidden ||
+        !item.title ||
+        item.title === "[Transcribing...]" ||
+        item.status !== "DONE" ||
+        insertedTranscriptIdsRef.current.has(item.itemId)
+      ) {
+        return;
+      }
+
+      insertedTranscriptIdsRef.current.add(item.itemId);
+      void dbInsertTranscriptItem(
+        supabase,
+        item,
+        actionId,
+        isDoctor,
       );
     });
-
-    if (hasNewMessage || hasUpdatedMessage) {
-      scrollToBottom();
-
-      // if (hasNewMessage && transcriptItems.length > 0) {
-      //   const newestMessage = transcriptItems[transcriptItems.length - 1];
-        
-      //   // Do something with the newest message
-      //   console.log("New message received:", newestMessage);
-        
-      //   if (newestMessage.status === "DONE" && newestMessage.type === "MESSAGE") {
-      //     dbInsertTranscriptItem(supabase, newestMessage, userId, personality.key, isDoctor);
-      //   }
-      // }
-      
-      // If a message was updated, find which one(s)
-      if (hasUpdatedMessage) {
-        transcriptItems.forEach((newItem, index) => {
-          const oldItem = prevLogs[index];
-          if (oldItem && (newItem.title !== oldItem.title || newItem.data !== oldItem.data)) {
-            console.log("Message updated:", newItem);
-            
-            if (newItem.type === "MESSAGE" && newItem.role === "user") {
-              dbInsertTranscriptItem(supabase, newItem, userId, personality.key, isDoctor);
-            }
-          }
-        });
-      }
-    }
-
-    setPrevLogs(transcriptItems);
-  }, [transcriptItems]);
+  }, [actionId, isDoctor, supabase, transcriptItems]);
 
   // Autofocus on text box input on load
   useEffect(() => {

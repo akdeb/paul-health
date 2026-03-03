@@ -99,8 +99,6 @@ declare global {
         enabled: boolean;
         starts_at: string | null;
         ends_at: string | null;
-        created_at: string;
-        updated_at: string;
     }
 
     type UserInfo =
@@ -134,13 +132,32 @@ declare global {
     interface IConversation {
         conversation_id?: string;
         created_at?: string;
-        personality_key: string;
-        user_id: string;
         role: Role;
         content: string;
-        metadata: any;
-        chat_group_id: string | null;
+        action_id: string;
         is_sensitive: boolean;
+        metadata: any;
+    }
+
+    type ActionType =
+        | "device_event"
+        | "web_chat"
+        | "device_chat"
+
+    interface ActionMetadata {
+        [key: string]: any;
+        text?: string;
+        ai_summary?: string;
+    }
+
+    interface IAction {
+        action_id: string;
+        user_id: string;
+        type: ActionType;
+        metadata: ActionMetadata;
+        session_time: number;
+        job_id: string | null;
+        created_at?: string;
     }
 
     type VoiceType =

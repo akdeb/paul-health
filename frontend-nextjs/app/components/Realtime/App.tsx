@@ -19,6 +19,10 @@ interface AppProps {
   usageLimitExceeded: boolean;
   autoStart?: boolean;
   conversationTarget?: ConversationTarget;
+  jobId?: string | null;
+  actionId?: string | null;
+  actionStartedAt?: number | null;
+  onClose?: () => void;
 }
 
 function App({
@@ -28,6 +32,10 @@ function App({
   usageLimitExceeded,
   autoStart = false,
   conversationTarget = "patient",
+  jobId = null,
+  actionId = null,
+  actionStartedAt = null,
+  onClose,
 }: AppProps) {
   const supabase = useMemo(() => createClient(), []);
   const [personality, setPersonality] = useState<IPersonality | null>(null);
@@ -79,6 +87,10 @@ function App({
               usageLimitExceeded={usageLimitExceeded}
               autoStart={autoStart}
               conversationTarget={conversationTarget}
+              jobId={jobId}
+              actionId={actionId}
+              actionStartedAt={actionStartedAt}
+              onClose={onClose}
             />
           </GeminiAPIProvider>
         </EventProvider>
@@ -96,6 +108,10 @@ function App({
           usageLimitExceeded={usageLimitExceeded}
           autoStart={autoStart}
           conversationTarget={conversationTarget}
+          jobId={jobId}
+          actionId={actionId}
+          actionStartedAt={actionStartedAt}
+          onClose={onClose}
         />
       </EventProvider>
     </TranscriptProvider>

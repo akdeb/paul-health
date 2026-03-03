@@ -12,6 +12,7 @@ export const connectToGrok = async ({
     connectionPcmFile,
     firstMessage,
     systemPrompt,
+    actionId,
     closeHandler,
 }: ProviderArgs) => {
     const { user, supabase } = payload;
@@ -129,7 +130,7 @@ export const connectToGrok = async ({
 
                 case "conversation.item.input_audio_transcription.completed":
                     if (typeof event.transcript === "string" && event.transcript.length > 0) {
-                        await addConversation(supabase, "user", event.transcript, user);
+                        await addConversation(supabase, "user", event.transcript, actionId);
                     }
                     break;
 
@@ -142,7 +143,7 @@ export const connectToGrok = async ({
                     opus.flush(true);
 
                     if (outputTranscript) {
-                        await addConversation(supabase, "assistant", outputTranscript, user);
+                        await addConversation(supabase, "assistant", outputTranscript, actionId);
                         outputTranscript = "";
                     }
                     ws.send(JSON.stringify({ type: "server", msg: "RESPONSE.COMPLETE" }));

@@ -15,18 +15,27 @@ const getChatHistory = async (
   personalityKey: string | null,
 ): Promise<string> => {
   try {
-    let query = supabase
-      .from("conversations")
-      .select("*")
+    const { data: actions, error: actionsError } = await supabase
+      .from("actions")
+      .select("action_id")
       .eq("user_id", userId)
       .order("created_at", { ascending: false })
       .limit(10);
 
-    if (personalityKey) {
-      query = query.eq("personality_key", personalityKey);
+    if (actionsError) throw actionsError;
+
+    const actionIds = (actions ?? []).map((action) => action.action_id);
+    if (actionIds.length === 0) {
+      return "";
     }
 
-    const { data, error } = await query;
+    const { data, error } = await supabase
+      .from("conversations")
+      .select("*")
+      .in("action_id", actionIds)
+      .order("created_at", { ascending: false })
+      .limit(10);
+
     if (error) throw error;
 
     const messages = data.map((chat: IConversation) =>

@@ -7,55 +7,51 @@ export type Json =
   | Json[]
 
 export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "14.1"
+  }
   public: {
     Tables: {
-      conversations: {
+      actions: {
         Row: {
-          chat_group_id: string | null
-          content: string
-          conversation_id: string
+          action_id: string
           created_at: string
-          emotion_model: string | null
-          is_sensitive: boolean | null
-          metadata: Json | null
-          personalities_translation_id: string | null
-          role: string
+          job_id: string | null
+          metadata: Json
+          session_time: number
+          type: string
           user_id: string
         }
         Insert: {
-          chat_group_id?: string | null
-          content: string
-          conversation_id?: string
+          action_id?: string
           created_at?: string
-          emotion_model?: string | null
-          is_sensitive?: boolean | null
-          metadata?: Json | null
-          personalities_translation_id?: string | null
-          role: string
+          job_id?: string | null
+          metadata: Json
+          session_time?: number
+          type: string
           user_id?: string
         }
         Update: {
-          chat_group_id?: string | null
-          content?: string
-          conversation_id?: string
+          action_id?: string
           created_at?: string
-          emotion_model?: string | null
-          is_sensitive?: boolean | null
-          metadata?: Json | null
-          personalities_translation_id?: string | null
-          role?: string
+          job_id?: string | null
+          metadata?: Json
+          session_time?: number
+          type?: string
           user_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: "conversations_personalities_translation_id_fkey"
-            columns: ["personalities_translation_id"]
+            foreignKeyName: "sessions_job_id_fkey"
+            columns: ["job_id"]
             isOneToOne: false
-            referencedRelation: "personalities_translations"
-            referencedColumns: ["personalities_translation_id"]
+            referencedRelation: "jobs"
+            referencedColumns: ["job_id"]
           },
           {
-            foreignKeyName: "conversations_user_id_fkey"
+            foreignKeyName: "sessions_user_id_fkey"
             columns: ["user_id"]
             isOneToOne: false
             referencedRelation: "users"
@@ -63,90 +59,98 @@ export type Database = {
           },
         ]
       }
-      care_activities: {
+      api_keys: {
         Row: {
-          activity_id: string
-          caregiver_id: string
+          api_key_id: string
           created_at: string
-          cron: string
-          enabled: boolean
-          ends_at: string | null
-          instructions: string
-          patient_id: string
-          starts_at: string | null
-          timezone: string
-          title: string
-          type: string
-          updated_at: string
+          encrypted_key: string
+          iv: string
+          user_id: string
         }
         Insert: {
-          activity_id?: string
-          caregiver_id: string
+          api_key_id?: string
           created_at?: string
-          cron: string
-          enabled?: boolean
-          ends_at?: string | null
-          instructions?: string
-          patient_id: string
-          starts_at?: string | null
-          timezone?: string
-          title: string
-          type: string
-          updated_at?: string
+          encrypted_key: string
+          iv: string
+          user_id?: string
         }
         Update: {
-          activity_id?: string
-          caregiver_id?: string
+          api_key_id?: string
           created_at?: string
-          cron?: string
-          enabled?: boolean
-          ends_at?: string | null
-          instructions?: string
-          patient_id?: string
-          starts_at?: string | null
-          timezone?: string
-          title?: string
-          type?: string
-          updated_at?: string
+          encrypted_key?: string
+          iv?: string
+          user_id?: string
         }
         Relationships: [
           {
-            foreignKeyName: "care_activities_caregiver_id_fkey"
-            columns: ["caregiver_id"]
-            isOneToOne: false
+            foreignKeyName: "api_keys_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: true
             referencedRelation: "users"
             referencedColumns: ["user_id"]
           },
-          {
-            foreignKeyName: "care_activities_patient_id_fkey"
-            columns: ["patient_id"]
-            isOneToOne: false
-            referencedRelation: "patients"
-            referencedColumns: ["patient_id"]
-          },
         ]
+      }
+      conversations: {
+        Row: {
+          action_id: string
+          content: string
+          conversation_id: string
+          created_at: string
+          is_sensitive: boolean | null
+          metadata: Json | null
+          role: string
+        }
+        Insert: {
+          action_id: string
+          content: string
+          conversation_id?: string
+          created_at?: string
+          is_sensitive?: boolean | null
+          metadata?: Json | null
+          role: string
+        }
+        Update: {
+          action_id?: string
+          content?: string
+          conversation_id?: string
+          created_at?: string
+          is_sensitive?: boolean | null
+          metadata?: Json | null
+          role?: string
+        }
+        Relationships: []
       }
       devices: {
         Row: {
           created_at: string
           device_id: string
+          is_ota: boolean
+          is_reset: boolean
           mac_address: string | null
           user_code: string
           user_id: string | null
+          volume: number
         }
         Insert: {
           created_at?: string
           device_id?: string
+          is_ota?: boolean
+          is_reset?: boolean
           mac_address?: string | null
           user_code: string
           user_id?: string | null
+          volume?: number
         }
         Update: {
           created_at?: string
           device_id?: string
+          is_ota?: boolean
+          is_reset?: boolean
           mac_address?: string | null
           user_code?: string
           user_id?: string | null
+          volume?: number
         }
         Relationships: [
           {
@@ -158,150 +162,44 @@ export type Database = {
           },
         ]
       }
-      inbound: {
+      jobs: {
         Row: {
           created_at: string
-          email: string | null
-          inbound_id: string
-          name: string | null
-          type: string | null
-        }
-        Insert: {
-          created_at?: string
-          email?: string | null
-          inbound_id?: string
-          name?: string | null
-          type?: string | null
-        }
-        Update: {
-          created_at?: string
-          email?: string | null
-          inbound_id?: string
-          name?: string | null
-          type?: string | null
-        }
-        Relationships: []
-      }
-      patients: {
-        Row: {
-          about: string
-          address: string
-          age: number
-          avoid: string[]
-          caregiver_id: string
-          created_at: string
-          gender: string
-          jobs: string[]
+          cron: string
+          enabled: boolean
+          instructions: string
+          job_id: string
           name: string
           patient_id: string
-          relations: string[]
-          stories: string[]
-          timezone: string
-        }
-        Insert: {
-          about?: string
-          address?: string
-          age?: number
-          avoid?: string[]
-          caregiver_id: string
-          created_at?: string
-          gender?: string
-          jobs?: string[]
-          name?: string
-          patient_id?: string
-          relations?: string[]
-          stories?: string[]
-          timezone?: string
-        }
-        Update: {
-          about?: string
-          address?: string
-          age?: number
-          avoid?: string[]
-          caregiver_id?: string
-          created_at?: string
-          gender?: string
-          jobs?: string[]
-          name?: string
-          patient_id?: string
-          relations?: string[]
-          stories?: string[]
-          timezone?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "patients_caregiver_id_fkey"
-            columns: ["caregiver_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["user_id"]
-          },
-        ]
-      }
-      photos: {
-        Row: {
-          caption: string
-          created_at: string
-          patient_id: string
-          photo_id: string
           type: string
-          url: string
         }
         Insert: {
-          caption?: string
           created_at?: string
+          cron: string
+          enabled: boolean
+          instructions?: string
+          job_id?: string
+          name: string
           patient_id: string
-          photo_id?: string
-          type?: string
-          url: string
+          type: string
         }
         Update: {
-          caption?: string
           created_at?: string
+          cron?: string
+          enabled?: boolean
+          instructions?: string
+          job_id?: string
+          name?: string
           patient_id?: string
-          photo_id?: string
           type?: string
-          url?: string
         }
         Relationships: [
           {
-            foreignKeyName: "photos_patient_id_fkey"
+            foreignKeyName: "jobs_patient_id_fkey"
             columns: ["patient_id"]
             isOneToOne: false
             referencedRelation: "patients"
             referencedColumns: ["patient_id"]
-          },
-        ]
-      }
-      insights: {
-        Row: {
-          created_at: string
-          date: string
-          insight_id: string
-          metadata: Json
-          user_id: string
-        }
-        Insert: {
-          created_at?: string
-          date: string
-          insight_id?: string
-          metadata: Json
-          user_id?: string
-        }
-        Update: {
-          created_at?: string
-          date?: string
-          insight_id?: string
-          metadata?: Json
-          user_id?: string
-        }
-        Relationships: [
-          {
-            foreignKeyName: "insights_user_id_fkey"
-            columns: ["user_id"]
-            isOneToOne: false
-            referencedRelation: "users"
-            referencedColumns: ["user_id"]
           },
         ]
       }
@@ -329,126 +227,150 @@ export type Database = {
         }
         Relationships: []
       }
-      personalities: {
+      patients: {
         Row: {
+          about: string
+          address: string
+          age: number
+          avoid: string[]
+          caregiver_id: string
           created_at: string
-          is_doctor: boolean
-          key: string
-          personality_id: string
+          gender: string
+          jobs: string[]
+          name: string
+          patient_id: string
+          relations: string[]
+          stories: string[]
+          timezone: string
         }
         Insert: {
+          about?: string
+          address: string
+          age?: number
+          avoid: string[]
+          caregiver_id: string
           created_at?: string
-          is_doctor?: boolean
-          key?: string
-          personality_id?: string
+          gender?: string
+          jobs: string[]
+          name: string
+          patient_id?: string
+          relations: string[]
+          stories: string[]
+          timezone?: string
         }
         Update: {
+          about?: string
+          address?: string
+          age?: number
+          avoid?: string[]
+          caregiver_id?: string
           created_at?: string
-          is_doctor?: boolean
-          key?: string
-          personality_id?: string
-        }
-        Relationships: []
-      }
-      personalities_translations: {
-        Row: {
-          created_at: string
-          language_code: string
-          personalities_translation_id: string
-          personality_key: string
-          subtitle: string
-          title: string
-          trait: string
-          trait_short_description: string
-          voice_name: string
-        }
-        Insert: {
-          created_at?: string
-          language_code: string
-          personalities_translation_id?: string
-          personality_key: string
-          subtitle: string
-          title: string
-          trait: string
-          trait_short_description: string
-          voice_name: string
-        }
-        Update: {
-          created_at?: string
-          language_code?: string
-          personalities_translation_id?: string
-          personality_key?: string
-          subtitle?: string
-          title?: string
-          trait?: string
-          trait_short_description?: string
-          voice_name?: string
+          gender?: string
+          jobs?: string[]
+          name?: string
+          patient_id?: string
+          relations?: string[]
+          stories?: string[]
+          timezone?: string
         }
         Relationships: [
           {
-            foreignKeyName: "personalities_translations_language_code_fkey"
-            columns: ["language_code"]
+            foreignKeyName: "patients_caregiver_id_fkey"
+            columns: ["caregiver_id"]
             isOneToOne: false
-            referencedRelation: "languages"
-            referencedColumns: ["code"]
-          },
-          {
-            foreignKeyName: "personalities_translations_personality_key_fkey"
-            columns: ["personality_key"]
-            isOneToOne: false
-            referencedRelation: "personalities"
-            referencedColumns: ["key"]
-          },
-          {
-            foreignKeyName: "personalities_translations_voice_name_fkey"
-            columns: ["voice_name"]
-            isOneToOne: false
-            referencedRelation: "toys"
-            referencedColumns: ["name"]
+            referencedRelation: "users"
+            referencedColumns: ["user_id"]
           },
         ]
       }
-      toys: {
+      personalities: {
         Row: {
+          character_prompt: string
           created_at: string
-          image_src: string
-          name: string
-          prompt: string
-          third_person_prompt: string
-          toy_id: string
-          tts_code: string
-          tts_language_code: string | null
-          tts_model: Database["public"]["Enums"]["tts_model_enum"] | null
+          creator_id: string | null
+          first_message_prompt: string
+          key: string
+          oai_voice: string
+          personality_id: string
+          pitch_factor: number
+          provider: string
+          short_description: string
+          subtitle: string
+          title: string
+          voice_prompt: string
         }
         Insert: {
+          character_prompt?: string
           created_at?: string
-          image_src?: string
-          name: string
-          prompt: string
-          third_person_prompt?: string
-          toy_id?: string
-          tts_code?: string
-          tts_language_code?: string | null
-          tts_model?: Database["public"]["Enums"]["tts_model_enum"] | null
+          creator_id?: string | null
+          first_message_prompt?: string
+          key?: string
+          oai_voice?: string
+          personality_id?: string
+          pitch_factor?: number
+          provider?: string
+          short_description?: string
+          subtitle?: string
+          title?: string
+          voice_prompt?: string
         }
         Update: {
+          character_prompt?: string
           created_at?: string
-          image_src?: string
-          name?: string
-          prompt?: string
-          third_person_prompt?: string
-          toy_id?: string
-          tts_code?: string
-          tts_language_code?: string | null
-          tts_model?: Database["public"]["Enums"]["tts_model_enum"] | null
+          creator_id?: string | null
+          first_message_prompt?: string
+          key?: string
+          oai_voice?: string
+          personality_id?: string
+          pitch_factor?: number
+          provider?: string
+          short_description?: string
+          subtitle?: string
+          title?: string
+          voice_prompt?: string
         }
         Relationships: [
           {
-            foreignKeyName: "toys_language_code_fkey"
-            columns: ["tts_language_code"]
+            foreignKeyName: "personalities_creator_id_fkey"
+            columns: ["creator_id"]
             isOneToOne: false
-            referencedRelation: "languages"
-            referencedColumns: ["code"]
+            referencedRelation: "users"
+            referencedColumns: ["user_id"]
+          },
+        ]
+      }
+      photos: {
+        Row: {
+          caption: string
+          created_at: string
+          patient_id: string
+          photo_id: string
+          type: string
+          url: string
+        }
+        Insert: {
+          caption: string
+          created_at?: string
+          patient_id?: string
+          photo_id?: string
+          type: string
+          url: string
+        }
+        Update: {
+          caption?: string
+          created_at?: string
+          patient_id?: string
+          photo_id?: string
+          type?: string
+          url?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "photos_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["patient_id"]
           },
         ]
       }
@@ -456,55 +378,50 @@ export type Database = {
         Row: {
           avatar_url: string
           created_at: string
+          device_id: string | null
           email: string
           is_premium: boolean
           language_code: string
-          modules: string[] | null
-          most_recent_chat_group_id: string | null
-          patient_id: string | null
-          personality_id: string
-          session_time: number
           name: string
-          toy_name: string | null
+          patient_id: string
+          personality_id: string
           user_id: string
           user_info: Json
-          volume_control: number
         }
         Insert: {
           avatar_url?: string
           created_at?: string
+          device_id?: string | null
           email?: string
           is_premium?: boolean
           language_code?: string
-          modules?: string[] | null
-          most_recent_chat_group_id?: string | null
-          patient_id?: string | null
-          personality_id?: string
-          session_time?: number
           name: string
-          toy_name?: string | null
+          patient_id: string
+          personality_id?: string
           user_id?: string
           user_info?: Json
-          volume_control?: number
         }
         Update: {
           avatar_url?: string
           created_at?: string
+          device_id?: string | null
           email?: string
           is_premium?: boolean
           language_code?: string
-          modules?: string[] | null
-          most_recent_chat_group_id?: string | null
-          patient_id?: string | null
-          personality_id?: string
-          session_time?: number
           name?: string
-          toy_name?: string | null
+          patient_id?: string
+          personality_id?: string
           user_id?: string
           user_info?: Json
-          volume_control?: number
         }
         Relationships: [
+          {
+            foreignKeyName: "users_device_id_fkey"
+            columns: ["device_id"]
+            isOneToOne: true
+            referencedRelation: "devices"
+            referencedColumns: ["device_id"]
+          },
           {
             foreignKeyName: "users_language_code_fkey"
             columns: ["language_code"]
@@ -515,7 +432,7 @@ export type Database = {
           {
             foreignKeyName: "users_patient_id_fkey"
             columns: ["patient_id"]
-            isOneToOne: false
+            isOneToOne: true
             referencedRelation: "patients"
             referencedColumns: ["patient_id"]
           },
@@ -533,191 +450,15 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      binary_quantize:
-        | {
-            Args: {
-              "": string
-            }
-            Returns: unknown
-          }
-        | {
-            Args: {
-              "": unknown
-            }
-            Returns: unknown
-          }
-      halfvec_avg: {
-        Args: {
-          "": number[]
-        }
-        Returns: unknown
-      }
-      halfvec_out: {
-        Args: {
-          "": unknown
-        }
-        Returns: unknown
-      }
-      halfvec_send: {
-        Args: {
-          "": unknown
-        }
-        Returns: string
-      }
-      halfvec_typmod_in: {
-        Args: {
-          "": unknown[]
-        }
-        Returns: number
-      }
-      hnsw_bit_support: {
-        Args: {
-          "": unknown
-        }
-        Returns: unknown
-      }
-      hnsw_halfvec_support: {
-        Args: {
-          "": unknown
-        }
-        Returns: unknown
-      }
-      hnsw_sparsevec_support: {
-        Args: {
-          "": unknown
-        }
-        Returns: unknown
-      }
-      hnswhandler: {
-        Args: {
-          "": unknown
-        }
-        Returns: unknown
-      }
-      ivfflat_bit_support: {
-        Args: {
-          "": unknown
-        }
-        Returns: unknown
-      }
-      ivfflat_halfvec_support: {
-        Args: {
-          "": unknown
-        }
-        Returns: unknown
-      }
-      ivfflathandler: {
-        Args: {
-          "": unknown
-        }
-        Returns: unknown
-      }
-      l2_norm:
-        | {
-            Args: {
-              "": unknown
-            }
-            Returns: number
-          }
-        | {
-            Args: {
-              "": unknown
-            }
-            Returns: number
-          }
-      l2_normalize:
-        | {
-            Args: {
-              "": string
-            }
-            Returns: string
-          }
-        | {
-            Args: {
-              "": unknown
-            }
-            Returns: unknown
-          }
-        | {
-            Args: {
-              "": unknown
-            }
-            Returns: unknown
-          }
       match_documents: {
-        Args: {
-          query_embedding: string
-          match_count?: number
-          filter?: Json
-        }
+        Args: { filter?: Json; match_count?: number; query_embedding: string }
         Returns: {
-          id: string
           content: string
-          metadata: Json
           embedding: string
+          id: string
+          metadata: Json
           similarity: number
         }[]
-      }
-      sparsevec_out: {
-        Args: {
-          "": unknown
-        }
-        Returns: unknown
-      }
-      sparsevec_send: {
-        Args: {
-          "": unknown
-        }
-        Returns: string
-      }
-      sparsevec_typmod_in: {
-        Args: {
-          "": unknown[]
-        }
-        Returns: number
-      }
-      vector_avg: {
-        Args: {
-          "": number[]
-        }
-        Returns: string
-      }
-      vector_dims:
-        | {
-            Args: {
-              "": string
-            }
-            Returns: number
-          }
-        | {
-            Args: {
-              "": unknown
-            }
-            Returns: number
-          }
-      vector_norm: {
-        Args: {
-          "": string
-        }
-        Returns: number
-      }
-      vector_out: {
-        Args: {
-          "": string
-        }
-        Returns: unknown
-      }
-      vector_send: {
-        Args: {
-          "": string
-        }
-        Returns: string
-      }
-      vector_typmod_in: {
-        Args: {
-          "": unknown[]
-        }
-        Returns: number
       }
     }
     Enums: {
@@ -729,27 +470,33 @@ export type Database = {
   }
 }
 
-type PublicSchema = Database[Extract<keyof Database, "public">]
+type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
+
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
 
 export type Tables<
-  PublicTableNameOrOptions extends
-    | keyof (PublicSchema["Tables"] & PublicSchema["Views"])
-    | { schema: keyof Database },
-  TableName extends PublicTableNameOrOptions extends { schema: keyof Database }
-    ? keyof (Database[PublicTableNameOrOptions["schema"]]["Tables"] &
-        Database[PublicTableNameOrOptions["schema"]]["Views"])
+  DefaultSchemaTableNameOrOptions extends
+    | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+        DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
     : never = never,
-> = PublicTableNameOrOptions extends { schema: keyof Database }
-  ? (Database[PublicTableNameOrOptions["schema"]]["Tables"] &
-      Database[PublicTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+      DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
       Row: infer R
     }
     ? R
     : never
-  : PublicTableNameOrOptions extends keyof (PublicSchema["Tables"] &
-        PublicSchema["Views"])
-    ? (PublicSchema["Tables"] &
-        PublicSchema["Views"])[PublicTableNameOrOptions] extends {
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])
+    ? (DefaultSchema["Tables"] &
+        DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
         Row: infer R
       }
       ? R
@@ -757,20 +504,24 @@ export type Tables<
     : never
 
 export type TablesInsert<
-  PublicTableNameOrOptions extends
-    | keyof PublicSchema["Tables"]
-    | { schema: keyof Database },
-  TableName extends PublicTableNameOrOptions extends { schema: keyof Database }
-    ? keyof Database[PublicTableNameOrOptions["schema"]]["Tables"]
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
     : never = never,
-> = PublicTableNameOrOptions extends { schema: keyof Database }
-  ? Database[PublicTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
       Insert: infer I
     }
     ? I
     : never
-  : PublicTableNameOrOptions extends keyof PublicSchema["Tables"]
-    ? PublicSchema["Tables"][PublicTableNameOrOptions] extends {
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
         Insert: infer I
       }
       ? I
@@ -778,20 +529,24 @@ export type TablesInsert<
     : never
 
 export type TablesUpdate<
-  PublicTableNameOrOptions extends
-    | keyof PublicSchema["Tables"]
-    | { schema: keyof Database },
-  TableName extends PublicTableNameOrOptions extends { schema: keyof Database }
-    ? keyof Database[PublicTableNameOrOptions["schema"]]["Tables"]
+  DefaultSchemaTableNameOrOptions extends
+    | keyof DefaultSchema["Tables"]
+    | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
     : never = never,
-> = PublicTableNameOrOptions extends { schema: keyof Database }
-  ? Database[PublicTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
       Update: infer U
     }
     ? U
     : never
-  : PublicTableNameOrOptions extends keyof PublicSchema["Tables"]
-    ? PublicSchema["Tables"][PublicTableNameOrOptions] extends {
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+    ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
         Update: infer U
       }
       ? U
@@ -799,29 +554,43 @@ export type TablesUpdate<
     : never
 
 export type Enums<
-  PublicEnumNameOrOptions extends
-    | keyof PublicSchema["Enums"]
-    | { schema: keyof Database },
-  EnumName extends PublicEnumNameOrOptions extends { schema: keyof Database }
-    ? keyof Database[PublicEnumNameOrOptions["schema"]]["Enums"]
+  DefaultSchemaEnumNameOrOptions extends
+    | keyof DefaultSchema["Enums"]
+    | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+    ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
     : never = never,
-> = PublicEnumNameOrOptions extends { schema: keyof Database }
-  ? Database[PublicEnumNameOrOptions["schema"]]["Enums"][EnumName]
-  : PublicEnumNameOrOptions extends keyof PublicSchema["Enums"]
-    ? PublicSchema["Enums"][PublicEnumNameOrOptions]
+> = DefaultSchemaEnumNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
+    ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
     : never
 
 export type CompositeTypes<
   PublicCompositeTypeNameOrOptions extends
-    | keyof PublicSchema["CompositeTypes"]
-    | { schema: keyof Database },
+    | keyof DefaultSchema["CompositeTypes"]
+    | { schema: keyof DatabaseWithoutInternals },
   CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
-    schema: keyof Database
+    schema: keyof DatabaseWithoutInternals
   }
-    ? keyof Database[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+    ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
     : never = never,
-> = PublicCompositeTypeNameOrOptions extends { schema: keyof Database }
-  ? Database[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
-  : PublicCompositeTypeNameOrOptions extends keyof PublicSchema["CompositeTypes"]
-    ? PublicSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+> = PublicCompositeTypeNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
+    ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
     : never
+
+export const Constants = {
+  public: {
+    Enums: {
+      tts_model_enum: ["FISH", "AZURE"],
+    },
+  },
+} as const

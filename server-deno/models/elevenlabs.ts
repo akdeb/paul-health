@@ -64,6 +64,7 @@ export const connectToElevenLabs = async ({
 	payload,
 	connectionPcmFile,
 	firstMessage,
+	actionId,
 	closeHandler,
 }: ProviderArgs) => {
 	const agentId = payload.user.personality?.voice?.config?.config_id ??
@@ -267,7 +268,7 @@ export const connectToElevenLabs = async ({
 							supabase,
 							"user",
 							event.user_transcription_event.user_transcript,
-							user,
+							actionId,
 						);
 
 						if (!hasResponseStarted) {
@@ -290,7 +291,7 @@ export const connectToElevenLabs = async ({
 							supabase,
 							"assistant",
 							event.agent_response_event.agent_response,
-							user,
+							actionId,
 						);
 
 						console.log("Sending RESPONSE.COMPLETE to ESP32");

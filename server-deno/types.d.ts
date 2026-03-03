@@ -1,15 +1,39 @@
 import { SupabaseClient } from "@supabase/supabase-js";
 
 declare global {
+    type Role = "user" | "assistant";
+
     interface IConversation {
         conversation_id: string;
-        role: "user" | "assistant";
+        user_id?: string;
+        role: Role;
         content: string;
-        user_id: string;
         is_sensitive: boolean;
-        personality_key: string;
-        created_at: string;
+        action_id: string;
+        metadata: any;
     }
+
+    type ActionType =
+        | "device_event"
+        | "web_chat"
+        | "device_chat"
+
+    interface ActionMetadata {
+        [key: string]: any;
+        text?: string;
+        ai_summary?: string;
+    }
+
+    interface IAction {
+        action_id: string;
+        user_id: string;
+        type: ActionType;
+        metadata: ActionMetadata;
+        session_time: number;
+        job_id: string | null;
+        created_at?: string;
+    }
+
 
     interface IPayload {
         user: IUser;
@@ -83,9 +107,6 @@ declare global {
      */
     interface IPersonality {
         personality_id: string;
-        is_doctor: boolean;
-        is_child_voice: boolean;
-        is_story: boolean;
         key: string;
         oai_voice: string;
         provider: ModelProvider;
@@ -137,64 +158,63 @@ declare global {
         is_premium: boolean;
         email: string;
         name: string;
+        user_info: UserInfo;
+
+        // personality
         personality_id: string;
         personality?: IPersonality;
-        language: ILanguage;
+
+        // language
+        language?: ILanguage;
         language_code: string;
-        session_time: number;
-        user_info: UserInfo;
-        device_id: string;
+
+        // device
         device?: IDevice;
+        device_id: string | null;
+
+        // patient
+        patient_id: string;
+        patient?: IPatient;
     }
 
-    // Hume EVI WebSocket message types
-    interface HumeMessage {
-        type: string;
-        [key: string]: any;
+    interface IPatient {
+        patient_id: string;
+        name: string;
+        age: number;
+        about: string;
+        gender: "male" | "female" | "non-binary";
+        address: string;
+        jobs: string[];
+        relations: string[];
+        stories: string[];
+        avoid: string[];
+        caregiver_id: string;
+        timezone: string;
     }
 
-    interface HumeAudioInput {
-        type: 'audio_input';
-        data: string; // base64 encoded audio
+    interface IPhoto {
+        photo_id: string;
+        url: string;
+        caption: string;
+        type: "profile" | "album";
+        patient_id: string;
     }
 
-    interface HumeUserInput {
-        type: 'user_input';
-        text: string;
-    }
+    type CareActivityType =
+        | "guess_flag"
+        | "guess_capital"
+        | "conversation_news"
+        | "medication_reminder"
+        | "memory_prompt";
 
-    interface HumeAssistantInput {
-        type: 'assistant_input';
-        text: string;
-    }
-
-    interface HumeSessionSettings {
-        type: 'session_settings';
-        [key: string]: any;
-    }
-
-    interface HumeAssistantMessage {
-        type: 'assistant_message';
-        message: {
-            role: 'assistant';
-            content: string;
-        };
-        models: {
-            prosody?: {
-                scores: Record<string, number>;
-            };
-        };
-    }
-
-    interface HumeAudioOutput {
-        type: 'audio_output';
-        data: string; // base64 encoded audio
-    }
-
-    interface HumeError {
-        type: 'error';
-        code: string;
-        message: string;
+    interface IJob {
+        job_id: string;
+        name: string;
+        type: CareActivityType;
+        cron: string;
+        enabled: boolean;
+        instructions: string;
+        patient_id: string;
     }
 
     interface ProviderArgs {
@@ -203,6 +223,7 @@ declare global {
         connectionPcmFile: Deno.FsFile | null;
         firstMessage: string;
         systemPrompt: string;
+        actionId: string;
         closeHandler: () => Promise<void>;
     }
 }

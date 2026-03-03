@@ -82,7 +82,6 @@ export class GenAILiveClient extends EventEmitter<LiveClientEventTypes> {
       ...options,
       apiVersion: "v1alpha" as const,
     };
-    console.log(clientOptions);
     this.client = new GoogleGenAI(clientOptions);
 
     this.send = this.send.bind(this);

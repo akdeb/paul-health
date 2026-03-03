@@ -18,6 +18,7 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import Transcript from "./components/Transcript";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { createClient } from "@/utils/supabase/client";
+import { updateActionSessionTime } from "@/db/actions";
 import {
   buildCharacterInstructions,
   buildOpeningTurnPrompt,
@@ -31,6 +32,10 @@ interface OpenAIRealtimeAppProps {
   usageLimitExceeded: boolean;
   autoStart?: boolean;
   conversationTarget?: ConversationTarget;
+  jobId?: string | null;
+  actionId?: string | null;
+  actionStartedAt?: number | null;
+  onClose?: () => void;
 }
 
 function OpenAIRealtimeApp({
@@ -40,6 +45,10 @@ function OpenAIRealtimeApp({
   usageLimitExceeded,
   autoStart = false,
   conversationTarget = "patient",
+  jobId = null,
+  actionId = null,
+  actionStartedAt = null,
+  onClose,
 }: OpenAIRealtimeAppProps) {
   const supabase = useMemo(() => createClient(), []);
   const userId = user.user_id;
@@ -63,6 +72,41 @@ function OpenAIRealtimeApp({
 
   const [isPTTUserSpeaking, setIsPTTUserSpeaking] = useState<boolean>(false);
   const [isAudioPlaybackEnabled, setIsAudioPlaybackEnabled] = useState<boolean>(true);
+  const actionIdRef = useRef<string | null>(actionId);
+  const actionStartedAtRef = useRef<number | null>(actionStartedAt);
+  const lastReportedSessionTimeRef = useRef(0);
+
+  useEffect(() => {
+    actionIdRef.current = actionId;
+    lastReportedSessionTimeRef.current = 0;
+  }, [actionId]);
+
+  useEffect(() => {
+    actionStartedAtRef.current = actionStartedAt;
+  }, [actionStartedAt]);
+
+  const finalizeAction = async () => {
+    const currentActionId = actionIdRef.current;
+    const currentActionStartedAt = actionStartedAtRef.current;
+
+    if (!currentActionId || !currentActionStartedAt) {
+      return;
+    }
+
+    const sessionTime = Math.max(
+      0,
+      Math.floor((Date.now() - currentActionStartedAt) / 1000),
+    );
+
+    if (sessionTime <= lastReportedSessionTimeRef.current) {
+      return;
+    }
+
+    const didUpdate = await updateActionSessionTime(supabase, currentActionId, sessionTime);
+    if (didUpdate) {
+      lastReportedSessionTimeRef.current = sessionTime;
+    }
+  };
 
   const sendClientEvent = (eventObj: any, eventNameSuffix = "") => {
     if (dcRef.current && dcRef.current.readyState === "open") {
@@ -128,8 +172,18 @@ function OpenAIRealtimeApp({
     setSessionStatus("CONNECTING");
 
     try {
+      if (!actionId || !actionStartedAt) {
+        setSessionStatus("DISCONNECTED");
+        toast({
+          description: "No chat action is attached to this web session.",
+          variant: "destructive",
+        });
+        return;
+      }
+
       const EPHEMERAL_KEY = await fetchEphemeralKey();
       if (!EPHEMERAL_KEY) {
+        await finalizeAction();
         return;
       }
 
@@ -158,11 +212,13 @@ function OpenAIRealtimeApp({
       setDataChannel(dc);
     } catch (err) {
       console.error("Error connecting to realtime:", err);
+      await finalizeAction();
       setSessionStatus("DISCONNECTED");
     }
   };
 
   const disconnectFromRealtime = () => {
+    void finalizeAction();
     if (pcRef.current) {
       pcRef.current.getSenders().forEach((sender) => {
         if (sender.track) {
@@ -179,6 +235,12 @@ function OpenAIRealtimeApp({
 
     logClientEvent({}, "disconnected");
   };
+
+  useEffect(() => {
+    return () => {
+      void finalizeAction();
+    };
+  }, []);
 
   const createFirstMessage = () => {
     return buildOpeningTurnPrompt(
@@ -250,6 +312,9 @@ function OpenAIRealtimeApp({
     if (!open && (sessionStatus === "CONNECTED" || sessionStatus === "CONNECTING")) {
       disconnectFromRealtime();
     }
+    if (!open) {
+      onClose?.();
+    }
   };
 
   return (
@@ -279,7 +344,7 @@ function OpenAIRealtimeApp({
               onSendMessage={() => sendSimulatedUserMessage(userText)}
               canSend={!!dataChannel && sessionStatus === "CONNECTED"}
               personality={personality}
-              userId={userId}
+              actionId={actionId}
               supabase={supabase}
               isDoctor={isDoctor}
             />

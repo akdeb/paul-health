@@ -4,20 +4,17 @@ import { TranscriptItem } from "@/app/components/Realtime/types";
 export const dbInsertTranscriptItem = async (
     supabase: SupabaseClient,
     data: TranscriptItem,
-    userId: string,
-    personalityKey: string,
+    actionId: string,
     isDoctor: boolean
 ) => {
     const role = data.role == "user" ? isDoctor ? "doctor" : "user" : "assistant";
 
     const conversation: IConversation = {
-        user_id: userId,
-        personality_key: personalityKey,
         role: role,
         content: data.title ?? "",
+        action_id: actionId,
         is_sensitive: false,
         metadata: null,
-        chat_group_id: null,
     };
 
     await dbInsertConversation(supabase, conversation);
@@ -33,23 +30,15 @@ export const dbInsertConversation = async (
     }
 };
 
-export const dbGetConversation = async (
+export const dbGetConversationsByActionId = async (
     supabase: SupabaseClient,
-    userId: string
+    actionId: string
 ) => {
-    // Get the date 7 days ago from today
-    const sevenDaysAgo = new Date();
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
-
-    const sevenDaysAgoISO = sevenDaysAgo.toISOString();
-
     const { data, error } = await supabase
         .from("conversations")
         .select("*")
-        .eq("user_id", userId)
-        .eq("role", "user")
-        .gte("created_at", sevenDaysAgoISO);
-    // .order("created_at", { ascending: true });
+        .eq("action_id", actionId)
+        .order("created_at", { ascending: true });
 
     if (error) {
         throw error;
@@ -63,12 +52,29 @@ export const dbGetRecentMessages = async (
     toyId: string,
     personalityId: string
 ) => {
+    void toyId;
+    void personalityId;
+
+    const { data: actions, error: actionsError } = await supabase
+        .from("actions")
+        .select("action_id")
+        .eq("user_id", userId)
+        .order("created_at", { ascending: false })
+        .limit(20);
+
+    if (actionsError) {
+        throw actionsError;
+    }
+
+    const actionIds = (actions ?? []).map((action) => action.action_id);
+    if (actionIds.length === 0) {
+        return [];
+    }
+
     const { data, error } = await supabase
         .from("conversations")
         .select("*")
-        .eq("user_id", userId)
-        .eq("toy_id", toyId)
-        .eq("personality_id", personalityId)
+        .in("action_id", actionIds)
         .order("created_at", { ascending: false })
         .limit(20);
 

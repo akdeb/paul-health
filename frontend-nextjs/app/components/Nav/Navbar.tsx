@@ -8,6 +8,9 @@ import LeftNavbarButtons from "./LeftNavbarButtons";
 import { ArrowRight, Send } from "lucide-react";
 import { usePathname } from "next/navigation";
 import RealtimeApp from "../Realtime/App";
+import { createClient } from "@/utils/supabase/client";
+import { createAction } from "@/db/actions";
+import { toast } from "@/components/ui/use-toast";
 
 export function Navbar({
     user,
@@ -20,6 +23,10 @@ export function Navbar({
     const [lastScrollY, setLastScrollY] = useState(0);
     const isMobile = useMediaQuery("(max-width: 768px)");
     const [isTestOpen, setIsTestOpen] = useState(false);
+    const [isStartingCheckIn, setIsStartingCheckIn] = useState(false);
+    const [currentActionId, setCurrentActionId] = useState<string | null>(null);
+    const [currentActionStartedAt, setCurrentActionStartedAt] = useState<number | null>(null);
+    const supabase = createClient();
 
     useEffect(() => {
         if (typeof window !== "undefined" && isMobile) {
@@ -37,6 +44,44 @@ export function Navbar({
     }, [lastScrollY, isMobile]);
 
     const portalHref = user ? "/home" : "/login";
+
+    const handleStartCheckIn = async () => {
+        if (!user?.personality_id || isStartingCheckIn) {
+            return;
+        }
+
+        setIsStartingCheckIn(true);
+        const action = await createAction(supabase, {
+            userId: user.user_id,
+            type: "web_chat",
+            metadata: {},
+            sessionTime: 0,
+            jobId: null,
+        });
+
+        if (!action) {
+            setIsStartingCheckIn(false);
+            toast({
+                description: "Could not start this check-in session.",
+                variant: "destructive",
+            });
+            return;
+        }
+
+        setCurrentActionId(action.action_id);
+        setCurrentActionStartedAt(
+            action.created_at ? new Date(action.created_at).getTime() : Date.now(),
+        );
+        setIsTestOpen(true);
+        setIsStartingCheckIn(false);
+    };
+
+    const handleCloseCheckIn = () => {
+        setIsTestOpen(false);
+        setCurrentActionId(null);
+        setCurrentActionStartedAt(null);
+        setIsStartingCheckIn(false);
+    };
 
     return (
         <>
@@ -57,11 +102,11 @@ export function Navbar({
                 variant="blue"
                 size="sm"
                 className="font-bold text-white"
-                disabled={!user?.personality_id}
-                onClick={() => setIsTestOpen(true)}
+                disabled={!user?.personality_id || isStartingCheckIn}
+                onClick={() => void handleStartCheckIn()}
               >
                 <Send size={16} className="mr-2" />
-                Check-in
+                {isStartingCheckIn ? "Starting..." : "Check-in"}
               </Button>}
             </nav>
         </div>
@@ -75,6 +120,9 @@ export function Navbar({
             usageLimitExceeded={false}
             autoStart={true}
             conversationTarget="caregiver"
+            actionId={currentActionId}
+            actionStartedAt={currentActionStartedAt}
+            onClose={handleCloseCheckIn}
           />
         )}
         </>

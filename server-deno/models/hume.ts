@@ -10,6 +10,7 @@ export const connectToHume = ({
     connectionPcmFile,
     firstMessage,
     systemPrompt,
+    actionId,
     closeHandler,
 }: ProviderArgs) => {
     const { user, supabase } = payload;
@@ -96,6 +97,7 @@ export const connectToHume = ({
                         "assistant",
                         assistantMsg.message.content,
                         user,
+                        actionId,
                     );
                     break;
 
@@ -164,6 +166,7 @@ export const connectToHume = ({
                         "user",
                         message.message.content,
                         user,
+                        actionId,
                     );
                     break;
 

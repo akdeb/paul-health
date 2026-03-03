@@ -17,6 +17,7 @@ export const connectToGemini = async ({
     connectionPcmFile,
     firstMessage,
     systemPrompt,
+    actionId,
     closeHandler,
 }: ProviderArgs) => {
     const { user, supabase } = payload;
@@ -155,7 +156,7 @@ export const connectToGemini = async ({
                     supabase,
                     "user",
                     inputTranscriptionText,
-                    user,
+                    actionId,
                 );
 
                 // Add assistant transcription to supabase
@@ -163,7 +164,7 @@ export const connectToGemini = async ({
                     supabase,
                     "assistant",
                     outputTranscriptionText,
-                    user,
+                    actionId,
                 );
             }
         } catch (error) {

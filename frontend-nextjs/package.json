@@ -7,7 +7,7 @@
         "build": "next build",
         "start": "next start",
         "lint": "next lint",
-        "update-types": "npx supabase gen types typescript --project-id \"<project-id>\" > db/supabase.ts"
+        "update-types": "npx supabase gen types typescript --project-id uhyutrbhhyvwkjjvemvd > db/supabase.ts"
     },
     "dependencies": {
         "@azure/openai": "^2.0.0-beta.1",

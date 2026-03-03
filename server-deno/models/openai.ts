@@ -33,6 +33,7 @@ export const connectToOpenAI = async ({
     connectionPcmFile,
     firstMessage,
     systemPrompt,
+    actionId,
     closeHandler,
 }: ProviderArgs) => {
     const { user, supabase } = payload;
@@ -104,7 +105,7 @@ export const connectToOpenAI = async ({
                 supabase,
                 "assistant",
                 event.transcript,
-                user,
+                actionId,
             );
         } else if (event.type === "input_audio_buffer.committed") {
             ws.send(JSON.stringify({ type: "server", msg: "AUDIO.COMMITTED" }));
@@ -183,7 +184,7 @@ export const connectToOpenAI = async ({
                             supabase,
                             "user",
                             event.transcript,
-                            user,
+                            actionId,
                         );
                         break;
                 }

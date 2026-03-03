@@ -16,6 +16,7 @@ import { PCMPlayer } from "./lib/pcmPlayer";
 import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { createClient } from "@/utils/supabase/client";
+import { updateActionSessionTime } from "@/db/actions";
 import { toast } from "@/components/ui/use-toast";
 import {
   buildCharacterInstructions,
@@ -30,6 +31,10 @@ interface GeminiRealtimeAppProps {
   usageLimitExceeded: boolean;
   autoStart?: boolean;
   conversationTarget?: ConversationTarget;
+  jobId?: string | null;
+  actionId?: string | null;
+  actionStartedAt?: number | null;
+  onClose?: () => void;
 }
 
 function GeminiRealtimeApp({
@@ -39,6 +44,10 @@ function GeminiRealtimeApp({
   usageLimitExceeded,
   autoStart = false,
   conversationTarget = "patient",
+  jobId = null,
+  actionId = null,
+  actionStartedAt = null,
+  onClose,
 }: GeminiRealtimeAppProps) {
   const userId = user.user_id;
   const supabase = useMemo(() => createClient(), []);
@@ -69,6 +78,41 @@ function GeminiRealtimeApp({
   const [isAssistantSpeaking, setIsAssistantSpeaking] = useState(false);
   const [isListeningForUser, setIsListeningForUser] = useState(false);
   const isMobile = useMediaQuery("(max-width: 768px)");
+  const actionIdRef = useRef<string | null>(actionId);
+  const actionStartedAtRef = useRef<number | null>(actionStartedAt);
+  const lastReportedSessionTimeRef = useRef(0);
+
+  useEffect(() => {
+    actionIdRef.current = actionId;
+    lastReportedSessionTimeRef.current = 0;
+  }, [actionId]);
+
+  useEffect(() => {
+    actionStartedAtRef.current = actionStartedAt;
+  }, [actionStartedAt]);
+
+  const finalizeAction = useCallback(async () => {
+    const currentActionId = actionIdRef.current;
+    const currentActionStartedAt = actionStartedAtRef.current;
+
+    if (!currentActionId || !currentActionStartedAt) {
+      return;
+    }
+
+    const sessionTime = Math.max(
+      0,
+      Math.floor((Date.now() - currentActionStartedAt) / 1000),
+    );
+
+    if (sessionTime <= lastReportedSessionTimeRef.current) {
+      return;
+    }
+
+    const didUpdate = await updateActionSessionTime(supabase, currentActionId, sessionTime);
+    if (didUpdate) {
+      lastReportedSessionTimeRef.current = sessionTime;
+    }
+  }, [supabase]);
 
   const mergeStreamingTranscript = useCallback((prev: string, next: string) => {
     const cleanedNext = next.replace(/\s+/g, " ").trim();
@@ -152,6 +196,12 @@ function GeminiRealtimeApp({
     void connectToGeminiRealtime();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [autoStart]);
+
+  useEffect(() => {
+    return () => {
+      void finalizeAction();
+    };
+  }, [finalizeAction]);
 
   useEffect(() => {
     const recorder = geminiRecorderRef.current;
@@ -344,10 +394,20 @@ function GeminiRealtimeApp({
     setSessionStatus("CONNECTING");
 
     try {
+      if (!actionId || !actionStartedAt) {
+        setSessionStatus("DISCONNECTED");
+        toast({
+          description: "No chat action is attached to this web session.",
+          variant: "destructive",
+        });
+        return;
+      }
+
       const response = await fetch("/api/gemini/token", {
         method: "POST",
       });
       if (!response.ok) {
+        await finalizeAction();
         throw new Error("Failed to get ephemeral token");
       }
       const data = await response.json();
@@ -392,6 +452,7 @@ function GeminiRealtimeApp({
       setConfig(fullConfig);
     } catch (error) {
       console.error("[Gemini] Connection failed:", error);
+      await finalizeAction();
       toast({
         title: "Gemini connection failed",
         description: error instanceof Error ? error.message : "Unable to establish realtime session.",
@@ -404,6 +465,7 @@ function GeminiRealtimeApp({
 
   const disconnectFromGeminiRealtime = async () => {
     try {
+      await finalizeAction();
       await disconnect();
     } finally {
       geminiRecorderRef.current?.stop();
@@ -472,6 +534,9 @@ function GeminiRealtimeApp({
     if (!open && (sessionStatus === "CONNECTED" || sessionStatus === "CONNECTING")) {
       void disconnectFromGeminiRealtime();
     }
+    if (!open) {
+      onClose?.();
+    }
   };
 
   return (
@@ -499,7 +564,7 @@ function GeminiRealtimeApp({
               onSendMessage={() => {}}
               canSend={false}
               personality={personality}
-              userId={userId}
+              actionId={actionId}
               supabase={supabase}
               isDoctor={isDoctor}
             />

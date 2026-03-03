@@ -127,9 +127,7 @@ CREATE TABLE IF NOT EXISTS "public"."conversations" (
     "role" "text" NOT NULL,
     "content" "text" NOT NULL,
     "metadata" "jsonb",
-    "chat_group_id" "uuid",
     "is_sensitive" boolean DEFAULT false,
-    "personality_key" "text"
 );
 
 
@@ -321,11 +319,6 @@ ALTER TABLE ONLY "public"."users"
 
 ALTER TABLE ONLY "public"."api_keys"
     ADD CONSTRAINT "api_keys_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "public"."users"("user_id") ON UPDATE CASCADE ON DELETE CASCADE;
-
-
-
-ALTER TABLE ONLY "public"."conversations"
-    ADD CONSTRAINT "conversations_personality_key_fkey" FOREIGN KEY ("personality_key") REFERENCES "public"."personalities"("key") ON UPDATE CASCADE ON DELETE CASCADE;
 
 
 

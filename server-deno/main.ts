@@ -6,10 +6,12 @@ import type {
 } from "npm:@types/ws";
 import { authenticateUser } from "./utils.ts";
 import {
+    createAction,
     createFirstMessage,
     createSystemPrompt,
     getChatHistory,
     getSupabaseClient,
+    updateActionSessionTime,
 } from "./supabase.ts";
 import { SupabaseClient } from "@supabase/supabase-js";
 import { isDev } from "./utils.ts";
@@ -32,6 +34,22 @@ wss.on('headers', (headers, req) => {
 
 wss.on("connection", async (ws: WSWebSocket, payload: IPayload) => {
     const { user, supabase } = payload;
+    const action = await createAction(supabase, {
+        userId: user.user_id,
+        type: "device_chat",
+        metadata: {},
+        sessionTime: 0,
+        jobId: null,
+    });
+
+    if (!action) {
+        ws.close();
+        return;
+    }
+
+    const actionId = action.action_id;
+    const actionStartedAt = Date.now();
+    let isCleanedUp = false;
 
     let connectionPcmFile: Deno.FsFile | null = null;
     if (isDev) {
@@ -68,8 +86,21 @@ wss.on("connection", async (ws: WSWebSocket, payload: IPayload) => {
 
     // Common close handler for cleanup
     const closeHandler = async () => {
-        // Add any common cleanup logic here
+        if (isCleanedUp) {
+            return;
+        }
+
+        isCleanedUp = true;
+        const sessionTime = Math.max(
+            0,
+            Math.floor((Date.now() - actionStartedAt) / 1000),
+        );
+        await updateActionSessionTime(supabase, actionId, sessionTime);
     };
+
+    ws.on("close", async () => {
+        await closeHandler();
+    });
 
     // Common provider args
     const providerArgs: ProviderArgs = {
@@ -78,6 +109,7 @@ wss.on("connection", async (ws: WSWebSocket, payload: IPayload) => {
         connectionPcmFile,
         firstMessage,
         systemPrompt,
+        actionId,
         closeHandler,
     };
 

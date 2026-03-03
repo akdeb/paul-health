@@ -4,6 +4,8 @@ import { getOpenGraphMetadata } from "@/lib/utils";
 import { getUserById } from "@/db/users";
 import { createClient } from "@/utils/supabase/server";
 import HomePageSubtitles from "@/app/components/HomePageSubtitles";
+import { getActionsByUserId } from "@/db/actions";
+import ActionsFeed from "@/app/components/Actions/ActionsFeed";
 
 export const metadata: Metadata = {
     title: "Actions",
@@ -25,8 +27,18 @@ export default async function Home() {
         redirect("/login");
     }
 
-    return       <div className="flex flex-col gap-2">
-        <h1 className="text-3xl font-normal">Actions</h1>
-        <HomePageSubtitles user={dbUser} page="actions" />
-      </div>;
+    const initialActions = await getActionsByUserId(supabase, dbUser.user_id, {
+        limit: 20,
+        offset: 0,
+    });
+
+    return (
+        <div className="flex flex-col gap-6">
+            <div className="flex flex-col gap-2">
+                <h1 className="text-3xl font-normal">Actions</h1>
+                <HomePageSubtitles user={dbUser} page="actions" />
+            </div>
+            <ActionsFeed initialActions={initialActions} />
+        </div>
+    );
 }

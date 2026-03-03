@@ -64,16 +64,28 @@ export const getChatHistory = async (
     isDoctor: boolean,
 ): Promise<IConversation[]> => {
     try {
-        let query = supabase
-            .from("conversations")
-            .select("*")
+        const { data: actions, error: actionsError } = await supabase
+            .from("actions")
+            .select("action_id")
             .eq("user_id", userId)
             .order("created_at", { ascending: false })
             .limit(20);
 
-        if (personalityKey) {
-            query = query.eq("personality_key", personalityKey);
+        if (actionsError) {
+            throw actionsError;
         }
+
+        const actionIds = (actions ?? []).map((action) => action.action_id);
+        if (actionIds.length === 0) {
+            return [];
+        }
+
+        let query = supabase
+            .from("conversations")
+            .select("*")
+            .in("action_id", actionIds)
+            .order("created_at", { ascending: false })
+            .limit(20);
 
         // If isDoctor is true, only fetch conversations from the last 2 hours
         if (isDoctor) {
@@ -158,19 +170,72 @@ export const addConversation = async (
     supabase: SupabaseClient,
     speaker: "user" | "assistant",
     content: string,
-    user: IUser,
+    actionId: string,
 ): Promise<void> => {
     const { error } = await supabase.from("conversations").insert({
         role: speaker,
         content,
-        user_id: user.user_id,
+        action_id: actionId,
         is_sensitive: false,
-        personality_key: user.personality?.key,
     });
 
     if (error) {
         throw new Error("Failed to add conversation");
     }
+};
+
+export const createAction = async (
+    supabase: SupabaseClient,
+    {
+        userId,
+        type,
+        metadata = {},
+        sessionTime = 0,
+        jobId = null,
+    }: {
+        userId: string;
+        type: Extract<ActionType, "web_chat" | "device_chat">;
+        metadata?: ActionMetadata;
+        sessionTime?: number;
+        jobId?: string | null;
+    },
+): Promise<IAction | null> => {
+    const { data, error } = await supabase
+        .from("actions")
+        .insert({
+            user_id: userId,
+            type,
+            metadata,
+            session_time: sessionTime,
+            job_id: jobId,
+        })
+        .select()
+        .single();
+
+    if (error) {
+        console.log("error in createAction", error);
+        return null;
+    }
+
+    return data as IAction;
+};
+
+export const updateActionSessionTime = async (
+    supabase: SupabaseClient,
+    actionId: string,
+    sessionTime: number,
+): Promise<boolean> => {
+    const { error } = await supabase
+        .from("actions")
+        .update({ session_time: sessionTime })
+        .eq("action_id", actionId);
+
+    if (error) {
+        console.log("error in updateActionSessionTime", error);
+        return false;
+    }
+
+    return true;
 };
 
 /**
