@@ -5,7 +5,7 @@ export const getCareActivitiesByPatientId = async (
     patientId: string,
 ): Promise<ICareActivity[]> => {
     const { data, error } = await supabase
-        .from("care_activities")
+        .from("jobs")
         .select("*")
         .eq("patient_id", patientId)
         .order("created_at", { ascending: true });
@@ -20,10 +20,10 @@ export const getCareActivitiesByPatientId = async (
 
 export const createCareActivity = async (
     supabase: SupabaseClient,
-    activity: Omit<ICareActivity, "activity_id" | "created_at" | "updated_at">,
+    activity: Omit<ICareActivity, "job_id" | "created_at">,
 ): Promise<ICareActivity | null> => {
     const { data, error } = await supabase
-        .from("care_activities")
+        .from("jobs")
         .insert(activity)
         .select()
         .single();
@@ -38,16 +38,15 @@ export const createCareActivity = async (
 
 export const updateCareActivity = async (
     supabase: SupabaseClient,
-    activityId: string,
+    jobId: string,
     activity: Partial<ICareActivity>,
 ): Promise<ICareActivity | null> => {
     const { data, error } = await supabase
-        .from("care_activities")
+        .from("jobs")
         .update({
             ...activity,
-            updated_at: new Date().toISOString(),
         })
-        .eq("activity_id", activityId)
+        .eq("job_id", jobId)
         .select()
         .single();
 
@@ -61,12 +60,12 @@ export const updateCareActivity = async (
 
 export const deleteCareActivity = async (
     supabase: SupabaseClient,
-    activityId: string,
+    jobId: string,
 ): Promise<boolean> => {
     const { error } = await supabase
-        .from("care_activities")
+        .from("jobs")
         .delete()
-        .eq("activity_id", activityId);
+        .eq("job_id", jobId);
 
     if (error) {
         console.log("error in deleteCareActivity", error);

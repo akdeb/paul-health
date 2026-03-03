@@ -1,6 +1,18 @@
-"use client";
-
 export type ConversationTarget = "patient" | "caregiver";
+
+export function buildVoiceInstructions(
+  voicePrompt: string,
+  accent: string,
+  tone: string[],
+) {
+  const parts = [
+    voicePrompt.trim(),
+    accent ? `Accent: ${accent}` : "",
+    tone.length > 0 ? `Tone: ${tone.join(", ")}` : "",
+  ].filter(Boolean);
+
+  return parts.join("\n");
+}
 
 export function buildCharacterInstructions(
   characterPrompt: string,
@@ -14,6 +26,37 @@ export function buildCharacterInstructions(
   }
 
   return `${characterPrompt}\n\n${sharedAudienceGuidance}\n\nFor this conversation, you are speaking to the dementia patient unless the user explicitly tells you otherwise.`;
+}
+
+export function buildCompiledSystemPrompt({
+  characterPrompt,
+  voicePrompt,
+  accent,
+  tone,
+  conversationTarget,
+  languageName,
+  chatHistory,
+  timestamp,
+}: {
+  characterPrompt: string;
+  voicePrompt: string;
+  accent: string;
+  tone: string[];
+  conversationTarget: ConversationTarget;
+  languageName?: string | null;
+  chatHistory?: string;
+  timestamp?: string;
+}) {
+  const compiledVoicePrompt = buildVoiceInstructions(voicePrompt, accent, tone);
+  const sections = [
+    buildCharacterInstructions(characterPrompt, conversationTarget),
+    compiledVoicePrompt ? `VOICE INSTRUCTIONS:\n${compiledVoicePrompt}` : "",
+    chatHistory ? `CHAT HISTORY:\n${chatHistory}` : "",
+    timestamp ? `CURRENT TIME:\n${timestamp}` : "",
+    `LANGUAGE:\nYou may talk in any language the user would like, but the default language is ${languageName ?? "English"}.`,
+  ].filter(Boolean);
+
+  return sections.join("\n\n");
 }
 
 export function buildOpeningTurnPrompt(

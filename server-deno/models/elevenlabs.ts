@@ -68,7 +68,7 @@ export const connectToElevenLabs = async ({
 	closeHandler,
 }: ProviderArgs) => {
 	const agentId = payload.user.personality?.voice?.config?.config_id ??
-		payload.user.personality?.oai_voice;
+		payload.user.personality?.voice;
 	const apiKey = elevenLabsApiKey;
 
 	if (!agentId || !apiKey) {

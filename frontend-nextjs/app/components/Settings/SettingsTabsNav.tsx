@@ -6,8 +6,8 @@ import { usePathname } from "next/navigation";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const settingsTabs = [
-  { value: "/home/settings/patient", label: "Patient" },
   { value: "/home/settings/caregiver", label: "Caregiver" },
+  { value: "/home/settings/patient", label: "Patient" },
   { value: "/home/settings/ai", label: "Agent" },
   { value: "/home/settings/device", label: "Device" },
 ];

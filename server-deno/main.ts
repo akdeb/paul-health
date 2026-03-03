@@ -64,7 +64,7 @@ wss.on("connection", async (ws: WSWebSocket, payload: IPayload) => {
     const chatHistory = await getChatHistory(
         supabase,
         user.user_id,
-        user.personality?.key ?? null,
+        "device_chat",
         false,
     );
     const firstMessage = createFirstMessage(payload);

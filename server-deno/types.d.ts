@@ -102,13 +102,13 @@ declare global {
         | "verse";
 
     /**
-     * Note: oai_voice is essentially the name of the voice. 
+     * Note: voice is essentially the name of the voice. 
      * the naming here sucks, please change it
      */
     interface IPersonality {
         personality_id: string;
         key: string;
-        oai_voice: string;
+        voice: string;
         provider: ModelProvider;
         voice_description: string;
         title: string;
@@ -116,6 +116,8 @@ declare global {
         short_description: string;
         character_prompt: string;
         voice_prompt: string;
+        accent: string;
+        tone: string[];
         creator_id: string | null;
         pitch_factor: number;
         first_message_prompt: string;

@@ -21,7 +21,7 @@ export const connectToHume = ({
     console.log(`Connecting to Hume with key "${humeApiKey?.slice(0, 3)}..."`);
 
     // Build Hume WebSocket URL
-    const configId = personality?.oai_voice ?? "";
+    const configId = personality?.voice ?? "";
     const queryParams = new URLSearchParams({
         api_key: humeApiKey!,
         config_id: configId,

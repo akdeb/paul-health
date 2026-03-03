@@ -21,7 +21,7 @@ export const connectToGemini = async ({
     closeHandler,
 }: ProviderArgs) => {
     const { user, supabase } = payload;
-    const voiceName = user.personality?.oai_voice ?? defaultGeminiVoice;
+    const voiceName = user.personality?.voice ?? defaultGeminiVoice;
 
     const opus = createOpusPacketizer((packet) => ws.send(packet));
 

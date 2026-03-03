@@ -2,6 +2,10 @@ import { createClient } from "@/utils/supabase/server";
 import { SupabaseClient } from "@supabase/supabase-js";
 import { NextRequest, NextResponse } from "next/server";
 import { getUserById } from "@/db/users";
+import {
+  buildCompiledSystemPrompt,
+  ConversationTarget,
+} from "@/app/components/Realtime/lib/promptContext";
 
 interface IPayload {
   user: IUser;
@@ -12,13 +16,14 @@ interface IPayload {
 const getChatHistory = async (
   supabase: SupabaseClient,
   userId: string,
-  personalityKey: string | null,
+  actionType: Extract<ActionType, "web_chat" | "device_chat">,
 ): Promise<string> => {
   try {
     const { data: actions, error: actionsError } = await supabase
       .from("actions")
       .select("action_id")
       .eq("user_id", userId)
+      .eq("type", actionType)
       .order("created_at", { ascending: false })
       .limit(10);
 
@@ -49,57 +54,33 @@ const getChatHistory = async (
   }
 };
 
-const UserPromptTemplate = (user: IUser) => `
-YOU ARE TALKING TO someone with a personality described as: ${user.personality?.title}.
-
-Do not ask for personal information.
-Your physical form is in the form of a physical object or a toy.
-A person interacts with you by pressing a button, sends you instructions and you must respond in a concise conversational style.
-`;
-
-const getCommonPromptTemplate = (
-  chatHistory: string,
-  user: IUser,
-  timestamp: string,
-) => `
-YOUR VOICE IS: ${user.personality?.voice_prompt}
-
-YOUR CHARACTER PROMPT IS: ${user.personality?.character_prompt}
-CHAT HISTORY:
-${chatHistory}
-
-USER'S CURRENT TIME IS: ${timestamp}
-
-LANGUAGE:
-You may talk in any language the user would like, but the default language is ${
-  user?.language?.name ?? "English"
-}.
-`;
-
 const createSystemPrompt = async (
   payload: IPayload,
+  conversationTarget: ConversationTarget,
 ): Promise<string> => {
   const { user, supabase, timestamp } = payload;
   const chatHistory = await getChatHistory(
     supabase,
     user.user_id,
-    user.personality?.key ?? null,
+    "web_chat",
   );
-  const commonPrompt = getCommonPromptTemplate(chatHistory, user, timestamp);
-
-  let systemPrompt;
-  switch (user.user_info.user_type) {
-    case "user":
-      systemPrompt = UserPromptTemplate(user);
-      break;
-    default:
-      throw new Error("Invalid user type");
-  }
-  return systemPrompt + commonPrompt;
+  return buildCompiledSystemPrompt({
+    characterPrompt: user.personality?.character_prompt ?? "",
+    voicePrompt: user.personality?.voice_prompt ?? "",
+    accent: user.personality?.accent ?? "",
+    tone: user.personality?.tone ?? [],
+    conversationTarget,
+    languageName: user.language?.name,
+    chatHistory,
+    timestamp,
+  });
 };
 
 export async function GET(request: NextRequest) {
   const supabase = await createClient();
+  const conversationTargetParam = request.nextUrl.searchParams.get("conversationTarget");
+  const conversationTarget: ConversationTarget =
+    conversationTargetParam === "caregiver" ? "caregiver" : "patient";
 
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) {
@@ -116,7 +97,7 @@ export async function GET(request: NextRequest) {
     user: dbUser,
     supabase,
     timestamp: new Date().toISOString(),
-  });
+  }, conversationTarget);
 
   try {
     const response = await fetch(
@@ -130,7 +111,7 @@ export async function GET(request: NextRequest) {
         body: JSON.stringify({
           model: "gpt-4o-mini-realtime-preview-2024-12-17",
           instructions: systemPrompt,
-          voice: dbUser.personality?.oai_voice ?? "ballad",
+          voice: dbUser.personality?.voice ?? "ballad",
         }),
       },
     );

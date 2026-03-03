@@ -88,17 +88,13 @@ declare global {
         | "memory_prompt";
 
     interface ICareActivity {
-        activity_id: string;
-        caregiver_id: string;
+        job_id: string;
         patient_id: string;
         type: CareActivityType;
         title: string;
         instructions: string;
         cron: string;
-        timezone: string;
         enabled: boolean;
-        starts_at: string | null;
-        ends_at: string | null;
     }
 
     type UserInfo =
@@ -239,7 +235,7 @@ declare global {
 
     // characters <-> personalities table
     /**
-     * oai_voice is for the name of any voice. grok, gemini and openai use this.
+     * voice is for the name of any voice. grok, gemini and openai use this.
      * I forgot to refactor this, please consider updating it for your setup :)
      */
     interface IPersonality {
@@ -248,7 +244,7 @@ declare global {
         is_child_voice: boolean;
         is_story: boolean;
         key: string;
-        oai_voice: string;
+        voice: string;
         provider: ModelProvider;
         title: string;
         subtitle: string;
@@ -256,6 +252,8 @@ declare global {
         character_prompt: string;
         voice_prompt: string;
         first_message_prompt: string;
+        accent: string;
+        tone: string[];
         creator_id: string | null;
         pitch_factor: number;
     }

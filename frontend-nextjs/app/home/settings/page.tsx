@@ -8,5 +8,5 @@ export const metadata: Metadata = {
 };
 
 export default async function Home() {
-    redirect("/home/settings/patient");
+    redirect("/home/settings/caregiver");
 }

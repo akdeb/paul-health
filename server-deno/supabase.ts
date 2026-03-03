@@ -60,7 +60,7 @@ export const composeChatHistory = (data: IConversation[]) => {
 export const getChatHistory = async (
     supabase: SupabaseClient,
     userId: string,
-    personalityKey: string | null,
+    actionType: Extract<ActionType, "web_chat" | "device_chat">,
     isDoctor: boolean,
 ): Promise<IConversation[]> => {
     try {
@@ -68,6 +68,7 @@ export const getChatHistory = async (
             .from("actions")
             .select("action_id")
             .eq("user_id", userId)
+            .eq("type", actionType)
             .order("created_at", { ascending: false })
             .limit(20);
 
@@ -118,7 +119,11 @@ const getCommonPromptTemplate = (
     user: IUser,
     timestamp: string,
 ) => `
-Your Voice Description: ${user.personality?.voice_prompt}
+Your Voice Description: ${[
+    user.personality?.voice_prompt?.trim() ?? "",
+    user.personality?.accent ? `Accent: ${user.personality.accent}` : "",
+    user.personality?.tone?.length ? `Tone: ${user.personality.tone.join(", ")}` : "",
+].filter(Boolean).join("\n")}
 
 Your Character Description: ${user.personality?.character_prompt}
 

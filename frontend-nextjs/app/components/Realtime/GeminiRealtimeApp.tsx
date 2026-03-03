@@ -19,7 +19,6 @@ import { createClient } from "@/utils/supabase/client";
 import { updateActionSessionTime } from "@/db/actions";
 import { toast } from "@/components/ui/use-toast";
 import {
-  buildCharacterInstructions,
   buildOpeningTurnPrompt,
   ConversationTarget,
 } from "./lib/promptContext";
@@ -188,6 +187,18 @@ function GeminiRealtimeApp({
       isDoctor,
     );
   }, [conversationTarget, isDoctor, personality]);
+
+  const fetchSystemPrompt = useCallback(async (): Promise<string> => {
+    const response = await fetch(
+      `/api/realtime/prompt?conversationTarget=${conversationTarget}`,
+    );
+    if (!response.ok) {
+      throw new Error("Failed to fetch realtime prompt");
+    }
+
+    const data = await response.json() as { prompt: string };
+    return data.prompt;
+  }, [conversationTarget]);
 
   useEffect(() => {
     if (!autoStart) return;
@@ -413,12 +424,14 @@ function GeminiRealtimeApp({
       const data = await response.json();
       const freshToken = data.token;
 
+      const systemPrompt = await fetchSystemPrompt();
+
       const fullConfig: any = {
         responseModalities: [Modality.AUDIO],
         speechConfig: {
           voiceConfig: {
             prebuiltVoiceConfig: {
-              voiceName: personality.oai_voice,
+              voiceName: personality.voice,
             },
           },
         },
@@ -434,10 +447,7 @@ function GeminiRealtimeApp({
         },
         systemInstruction: {
           parts: [{
-            text: buildCharacterInstructions(
-              personality.character_prompt ?? "",
-              conversationTarget,
-            ),
+            text: systemPrompt,
           }],
         },
         outputAudioTranscription: {},

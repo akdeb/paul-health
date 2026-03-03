@@ -55,7 +55,7 @@ export default function PatientSettingsPanel({
   const [name, setName] = useState(patient?.name ?? "");
   const [age, setAge] = useState<number>(patient?.age ?? 0);
   const [gender, setGender] = useState<IPatient["gender"]>(
-    patient?.gender ?? "non-binary",
+    patient?.gender ?? "male",
   );
   const [address, setAddress] = useState(patient?.address ?? "");
   const [about, setAbout] = useState(patient?.about ?? "");
@@ -74,7 +74,7 @@ export default function PatientSettingsPanel({
   useEffect(() => {
     setName(patient?.name ?? "");
     setAge(patient?.age ?? 0);
-    setGender(patient?.gender ?? "non-binary");
+    setGender(patient?.gender ?? "male");
     setAddress(patient?.address ?? "");
     setAbout(patient?.about ?? "");
     setTimezone(patient?.timezone ?? "UTC");

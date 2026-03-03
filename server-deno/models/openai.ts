@@ -316,7 +316,7 @@ export const connectToOpenAI = async ({
                 prefix_padding_ms: 400,
                 silence_duration_ms: 1000,
             },
-            voice: user.personality?.oai_voice ?? defaultOpenAIVoice,
+            voice: user.personality?.voice ?? defaultOpenAIVoice,
             instructions: systemPrompt,
             input_audio_transcription: { model: "whisper-1" },
         };

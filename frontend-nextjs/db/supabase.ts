@@ -285,47 +285,62 @@ export type Database = {
       }
       personalities: {
         Row: {
+          accent: string
           character_prompt: string
           created_at: string
           creator_id: string | null
           first_message_prompt: string
+          is_child_voice: boolean
+          is_doctor: boolean
+          is_story: boolean
           key: string
-          oai_voice: string
+          voice: string
           personality_id: string
           pitch_factor: number
           provider: string
           short_description: string
           subtitle: string
+          tone: string[]
           title: string
           voice_prompt: string
         }
         Insert: {
+          accent?: string
           character_prompt?: string
           created_at?: string
           creator_id?: string | null
           first_message_prompt?: string
+          is_child_voice?: boolean
+          is_doctor?: boolean
+          is_story?: boolean
           key?: string
-          oai_voice?: string
+          voice?: string
           personality_id?: string
           pitch_factor?: number
           provider?: string
           short_description?: string
           subtitle?: string
+          tone?: string[]
           title?: string
           voice_prompt?: string
         }
         Update: {
+          accent?: string
           character_prompt?: string
           created_at?: string
           creator_id?: string | null
           first_message_prompt?: string
+          is_child_voice?: boolean
+          is_doctor?: boolean
+          is_story?: boolean
           key?: string
-          oai_voice?: string
+          voice?: string
           personality_id?: string
           pitch_factor?: number
           provider?: string
           short_description?: string
           subtitle?: string
+          tone?: string[]
           title?: string
           voice_prompt?: string
         }

@@ -25,7 +25,7 @@ data [
       provider: "gemini",
       subtitle: "Exercise and nutrition advisor",
       is_doctor: false,
-      oai_voice: "Sadachbia",
+      voice: "Sadachbia",
       created_at: "2024-09-08T15:26:39.097666+00:00",
       creator_id: null,
       pitch_factor: 1,

@@ -48,7 +48,6 @@ export default async function CarePlanPage() {
         <CarePlanManager
           caregiverId={dbUser.user_id}
           patientId={patient.patient_id}
-          patientTimezone={patient.timezone || "UTC"}
           initialActivities={activities}
         />
       )}

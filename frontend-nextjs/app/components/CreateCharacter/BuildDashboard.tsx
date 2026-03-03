@@ -49,6 +49,9 @@ const formSchema = z.object({
   voice: z.string().min(1, "Voice selection is required"),
   accent: z.string().min(1, "Pick an accent"),
   tones: z.array(z.string()).min(1, "Pick at least one tone"),
+  voiceInstructions: z
+    .string()
+    .max(1000, "Maximum 1000 characters"),
   customInstructions: z
     .string()
     .min(20, "Minimum 20 characters")
@@ -76,6 +79,7 @@ const SettingsDashboard: React.FC<SettingsDashboardProps> = ({
     voice: "" as GeminiVoice | "",
     accent: "" as string,
     tones: [] as string[],
+    voiceInstructions: "",
     customInstructions: "",
     firstMessagePrompt: "",
   });
@@ -97,33 +101,18 @@ const SettingsDashboard: React.FC<SettingsDashboardProps> = ({
   React.useEffect(() => {
     if (!personality) return;
 
-    const voice = (personality.oai_voice ?? "") as GeminiVoice | "";
+    const voice = (personality.voice ?? "") as GeminiVoice | "";
     const assistantName = personality.title ?? "";
     const customInstructions = personality.character_prompt ?? "";
+    const voiceInstructions = personality.voice_prompt ?? "";
     const firstMessagePrompt = personality.first_message_prompt ?? "";
-
-    const accentMatch = /Accent:\s*(.*)/i.exec(personality.voice_prompt ?? "");
-    const toneMatch = /Tone:\s*(.*)/i.exec(personality.voice_prompt ?? "");
-
-    const accentLabel = (accentMatch?.[1] ?? "").trim();
-    const accentValue =
-      ACCENT_OPTIONS.find((o) => o.label.toLowerCase() === accentLabel.toLowerCase())
-        ?.value ??
-      "";
-
-    const toneLabels = (toneMatch?.[1] ?? "")
-      .split(",")
-      .map((s) => s.trim())
-      .filter(Boolean);
-    const tones = toneLabels
-      .map((lbl) => TONE_OPTIONS.find((o) => o.label.toLowerCase() === lbl.toLowerCase())?.value)
-      .filter(Boolean) as string[];
 
     setFormData({
       assistantName,
       voice,
-      accent: accentValue,
-      tones,
+      accent: personality.accent ?? "",
+      tones: personality.tone ?? [],
+      voiceInstructions,
       customInstructions,
       firstMessagePrompt,
     });
@@ -207,13 +196,6 @@ const SettingsDashboard: React.FC<SettingsDashboardProps> = ({
     }
 
     try {
-      const accentText =
-        ACCENT_OPTIONS.find((o) => o.value === formData.accent)?.label ??
-        formData.accent;
-      const toneText = formData.tones
-        .map((v) => TONE_OPTIONS.find((o) => o.value === v)?.label ?? v)
-        .join(", ");
-
       if (!selectedUser.personality_id) {
         throw new Error("No personality_id found for this user");
       }
@@ -222,8 +204,10 @@ const SettingsDashboard: React.FC<SettingsDashboardProps> = ({
         provider: "gemini",
         title: formData.assistantName,
         character_prompt: formData.customInstructions,
-        oai_voice: formData.voice,
-        voice_prompt: `Speak in the following accent: ${accentText}\nSpeak in the following tone: ${toneText}`,
+        voice: formData.voice,
+        accent: formData.accent,
+        tone: formData.tones,
+        voice_prompt: formData.voiceInstructions,
         first_message_prompt: formData.firstMessagePrompt,
       });
 
@@ -395,6 +379,24 @@ const SettingsDashboard: React.FC<SettingsDashboardProps> = ({
               <span className={formErrors.tones ? "text-red-500" : "text-gray-500"}>
                 {formErrors.tones}
               </span>
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="voiceInstructions">Voice instructions</Label>
+            <Textarea
+              id="voiceInstructions"
+              placeholder="Describe how the assistant should sound beyond accent and tone, such as pacing, warmth, emphasis, or cadence."
+              rows={4}
+              value={formData.voiceInstructions}
+              onChange={(e) => handleInputChange("voiceInstructions", e.target.value)}
+              onBlur={() => handleBlur("voiceInstructions")}
+            />
+            <p className="text-sm flex justify-between">
+              <span className={formErrors.voiceInstructions ? "text-red-500" : "text-gray-500"}>
+                {formErrors.voiceInstructions}
+              </span>
+              <span className="text-gray-500">{formData.voiceInstructions.length}/1000</span>
             </p>
           </div>
 

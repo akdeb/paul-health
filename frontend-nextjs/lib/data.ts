@@ -136,6 +136,13 @@ export const geminiVoices: VoiceType[] = [
         provider: "gemini",
     },
     {
+        id: "Sadachbia",
+        name: "Sadachbia",
+        description: "Lively",
+        color: "bg-red-100",
+        provider: "gemini",
+    },
+    {
         id: "Charon",
         name: "Charon",
         description: "Informative",
@@ -308,13 +315,6 @@ export const geminiVoices: VoiceType[] = [
         name: "Vindemiatrix",
         description: "Gentle",
         color: "bg-green-100",
-        provider: "gemini",
-    },
-    {
-        id: "Sadachbia",
-        name: "Sadachbia",
-        description: "Lively",
-        color: "bg-red-100",
         provider: "gemini",
     },
     {

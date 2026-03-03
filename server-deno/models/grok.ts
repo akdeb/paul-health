@@ -21,7 +21,7 @@ export const connectToGrok = async ({
         throw new Error("XAI_API_KEY is not set");
     }
 
-    const voice = user.personality?.oai_voice ?? defaultGrokVoice;
+    const voice = user.personality?.voice ?? defaultGrokVoice;
 
     const opus = createOpusPacketizer((packet) => ws.send(packet));
 

@@ -186,7 +186,7 @@ CREATE TABLE IF NOT EXISTS "public"."personalities" (
     "is_doctor" boolean DEFAULT false NOT NULL,
     "key" "text" DEFAULT ''::"text" NOT NULL,
     "is_child_voice" boolean DEFAULT false,
-    "oai_voice" "text" DEFAULT 'ash'::"text" NOT NULL,
+    "voice" "text" DEFAULT 'ash'::"text" NOT NULL,
     "voice_prompt" "text" DEFAULT 'the voice should sound smooth and nice to hear'::"text" NOT NULL,
     "title" "text" DEFAULT ''::"text" NOT NULL,
     "subtitle" "text" DEFAULT ''::"text" NOT NULL,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import {
   BellRing,
@@ -58,7 +58,6 @@ type WeekdayValue = "SUN" | "MON" | "TUE" | "WED" | "THU" | "FRI" | "SAT";
 interface CarePlanManagerProps {
   caregiverId: string;
   patientId: string;
-  patientTimezone: string;
   initialActivities: ICareActivity[];
 }
 
@@ -66,14 +65,11 @@ interface CareActivityFormState {
   type: CareActivityType;
   title: string;
   instructions: string;
-  timezone: string;
   enabled: boolean;
   frequency: ScheduleFrequency;
   weekday: WeekdayValue;
   daysOfWeek: WeekdayValue[];
   time: string;
-  startsOn: string;
-  endsOn: string;
 }
 
 type EditorState =
@@ -85,17 +81,6 @@ type EditorState =
       mode: "edit";
       activity: ICareActivity;
     };
-
-const IANA_TIMEZONES = typeof Intl.supportedValuesOf === "function"
-  ? Intl.supportedValuesOf("timeZone")
-  : [
-      "UTC",
-      "Europe/London",
-      "America/New_York",
-      "America/Los_Angeles",
-      "Asia/Kolkata",
-      "Australia/Sydney",
-    ];
 
 const WEEKDAY_OPTIONS: Array<{ value: WeekdayValue; label: string }> = [
   { value: "SUN", label: "Sun" },
@@ -113,6 +98,7 @@ const ACTIVITY_TYPE_OPTIONS: Array<{
   description: string;
   helperPlaceholder: string;
   chipTone: string;
+  bgColor: string;
   icon: typeof Flag;
 }> = [
   {
@@ -122,6 +108,7 @@ const ACTIVITY_TYPE_OPTIONS: Array<{
     helperPlaceholder: "e.g. Give the patient some chances and hints before revealing the answer.",
     chipTone: "bg-sky-100 text-sky-800",
     icon: Flag,
+    bgColor: "bg-sky-500",
   },
   {
     value: "guess_capital",
@@ -130,6 +117,7 @@ const ACTIVITY_TYPE_OPTIONS: Array<{
     helperPlaceholder: "e.g. Start easy and gradually increase difficulty if they feel engaged.",
     chipTone: "bg-amber-100 text-amber-800",
     icon: Globe2,
+    bgColor: "bg-amber-500",
   },
   {
     value: "conversation_news",
@@ -138,14 +126,16 @@ const ACTIVITY_TYPE_OPTIONS: Array<{
     helperPlaceholder: "e.g. Talk about current news in the local area and avoid distressing topics.",
     chipTone: "bg-slate-100 text-slate-800",
     icon: Newspaper,
+    bgColor: "bg-slate-500",
   },
   {
     value: "medication_reminder",
-    label: "Medication Reminder",
+    label: "Medicine Reminder",
     description: "Deliver reminders to take medicine or follow a care task.",
     helperPlaceholder: "e.g. Remind them to take the blue pill after breakfast and wait patiently.",
     chipTone: "bg-rose-100 text-rose-800",
     icon: BellRing,
+    bgColor: "bg-rose-500",
   },
   {
     value: "memory_prompt",
@@ -154,13 +144,13 @@ const ACTIVITY_TYPE_OPTIONS: Array<{
     helperPlaceholder: "e.g. Ask about family, favourite songs, and one warm memory from childhood.",
     chipTone: "bg-emerald-100 text-emerald-800",
     icon: Puzzle,
+    bgColor: "bg-emerald-500",
   },
 ];
 
 export default function CarePlanManager({
   caregiverId,
   patientId,
-  patientTimezone,
   initialActivities,
 }: CarePlanManagerProps) {
   const isDesktop = useMediaQuery("(min-width: 768px)");
@@ -189,7 +179,7 @@ export default function CarePlanManager({
     setActivities((prev) => {
       if (editorState?.mode === "edit") {
         return prev.map((item) => (
-          item.activity_id === activity.activity_id ? activity : item
+          item.job_id === activity.job_id ? activity : item
         ));
       }
 
@@ -203,8 +193,8 @@ export default function CarePlanManager({
     router.refresh();
   };
 
-  const handleDeleted = (activityId: string) => {
-    setActivities((prev) => prev.filter((item) => item.activity_id !== activityId));
+  const handleDeleted = (jobId: string) => {
+    setActivities((prev) => prev.filter((item) => item.job_id !== jobId));
     toast({
       description: "Activity removed.",
     });
@@ -216,7 +206,6 @@ export default function CarePlanManager({
     <CareActivityEditor
       caregiverId={caregiverId}
       patientId={patientId}
-      patientTimezone={patientTimezone}
       initialActivity={editorState.mode === "edit" ? editorState.activity : undefined}
       initialType={editorState.mode === "create" ? editorState.type : undefined}
       mode={editorState.mode}
@@ -240,29 +229,28 @@ export default function CarePlanManager({
           <div className="w-full min-w-0 overflow-x-auto pb-2">
             <div className="flex w-max min-w-full gap-3 p-2">
               {ACTIVITY_TYPE_OPTIONS.map((activityType) => {
-                const Icon = activityType.icon;
-
                 return (
-                  <button
-                    key={activityType.value}
-                    type="button"
-                    onClick={() => openCreate(activityType.value)}
-                    className="w-[260px] shrink-0 rounded-3xl border border-gray-200 bg-white p-4 text-left shadow-sm transition hover:-translate-y-0.5 hover:border-gray-400"
-                  >
-                    <div className="flex items-start justify-between gap-3">
-                      <span className={cn("rounded-full px-3 py-1 text-xs font-medium", activityType.chipTone)}>
-                        {activityType.label}
-                      </span>
-                      <Icon className="h-5 w-5 text-gray-500" />
-                    </div>
-                    <p className="mt-4 text-sm leading-6 text-gray-600">
-                      {activityType.description}
-                    </p>
-                    <div className="mt-5 flex items-center gap-2 text-sm font-medium text-gray-900">
-                      <Plus className="h-4 w-4" />
-                      Add activity
-                    </div>
-                  </button>
+                 <button
+  key={activityType.value}
+  type="button"
+  onClick={() => openCreate(activityType.value)}
+  className={cn("relative w-[260px] shrink-0 rounded-3xl p-4 text-left flex flex-col justify-start transition hover:-translate-y-0.5", activityType.bgColor)}
+>
+  {/* Add button (top right) */}
+  <div className="absolute right-3 top-3 flex h-7 w-7 items-center justify-center rounded-full bg-white/20">
+    <Plus className="h-4 w-4 text-white" />
+  </div>
+
+  {/* Title */}
+  <h3 className="text-2xl font-semibold w-3/4 text-white pr-8">
+    {activityType.label}
+  </h3>
+
+  {/* Subtitle */}
+  <p className="mt-2 text-sm leading-5 text-white/80">
+    {activityType.description}
+  </p>
+</button>
                 );
               })}
             </div>
@@ -292,10 +280,10 @@ export default function CarePlanManager({
               </CardContent>
             </Card>
           ) : (
-            <div className="grid gap-4 lg:grid-cols-2">
+            <div className="grid gap-4">
               {activities.map((activity) => (
                 <ScheduledActivityCard
-                  key={activity.activity_id}
+                  key={activity.job_id}
                   activity={activity}
                   onEdit={() => openEdit(activity)}
                 />
@@ -309,16 +297,13 @@ export default function CarePlanManager({
         <Sheet open={!!editorState} onOpenChange={(open) => !open && closeEditor()}>
           <SheetContent
             side="right"
-            className="w-full gap-0 overflow-y-auto rounded-tl-3xl rounded-bl-3xl p-0 sm:max-w-3xl"
+            className="w-full gap-0 overflow-y-auto rounded-tl-3xl rounded-bl-3xl p-0 sm:max-w-xl"
           >
             <div className="flex min-h-full flex-col">
               <SheetHeader className="border-b border-gray-100 px-6 py-5">
                 <SheetTitle>
                   {editorState?.mode === "edit" ? "Edit activity" : "Add activity"}
                 </SheetTitle>
-                <SheetDescription>
-                  Set the activity type, instructions, schedule, and enabled state.
-                </SheetDescription>
               </SheetHeader>
               <div className="flex-1 overflow-y-auto px-6 py-6">
                 {editorBody}
@@ -354,66 +339,152 @@ function ScheduledActivityCard({
   activity: ICareActivity;
   onEdit: () => void;
 }) {
+  const supabase = useMemo(() => createClient(), []);
   const typeConfig = ACTIVITY_TYPE_OPTIONS.find((item) => item.value === activity.type);
   const Icon = typeConfig?.icon ?? Puzzle;
 
+  // Optimistic UI state
+  const [enabled, setEnabled] = useState<boolean>(!!activity.enabled);
+  const [isPending, startTransition] = useTransition();
+
+  // Keep local state in sync if parent activity changes (refetch, realtime, etc.)
+  useEffect(() => {
+    setEnabled(!!activity.enabled);
+  }, [activity.enabled, activity.job_id]);
+
   return (
-    <Card className="rounded-3xl border-gray-200 shadow-sm">
-      <CardHeader className="space-y-4">
-        <div className="flex items-start justify-between gap-3">
-          <div className="space-y-2">
-            {typeConfig ? (
-              <span className={cn("inline-flex rounded-full px-3 py-1 text-xs font-medium", typeConfig.chipTone)}>
-                {typeConfig.label}
+<Card className="rounded-3xl border-gray-200 shadow-sm">
+  <CardHeader className="py-4 pb-2">
+    <div className="flex items-start justify-between gap-3">
+      <div className="min-w-0 space-y-2">
+        {typeConfig ? (
+          <span className={cn("inline-flex rounded-full px-2.5 py-1 text-[11px] font-medium", typeConfig.chipTone)}>
+            {typeConfig.label}
+          </span>
+        ) : null}
+
+        <CardTitle className="text-lg font-semibold leading-tight">
+          {activity.title}
+        </CardTitle>
+      </div>
+
+      <Icon className="mt-1 h-5 w-5 shrink-0 text-gray-500" />
+    </div>
+  </CardHeader>
+
+  <CardContent className="pb-4 pt-2 space-y-3">
+    <p className="text-sm leading-5 text-gray-600 line-clamp-2">
+      {activity.instructions || "No custom instructions yet."}
+    </p>
+
+    {/* Meta bar */}
+    <div className="rounded-2xl border border-gray-100 bg-gray-50 p-3">
+      <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        {/* Left side: Status + Cron */}
+        <div className="grid grid-cols-1 gap-2 sm:flex sm:items-center sm:gap-6">
+          {/* Status */}
+          <div className="flex items-center justify-between sm:justify-start gap-3">
+            <div className="flex items-center gap-2">
+              <span className="text-xs uppercase tracking-[0.14em] text-gray-400">Status</span>
+              <span className="text-sm font-medium text-gray-800">
+                {enabled ? "Enabled" : "Disabled"}
               </span>
-            ) : null}
-            <CardTitle className="text-xl font-semibold">{activity.title}</CardTitle>
+            </div>
+
+            {/* Switch on mobile next to status */}
+            <div className="sm:hidden">
+              <Switch
+                id={`activity-enabled-${activity.job_id ?? "draft"}-mobile`}
+                checked={enabled}
+                disabled={isPending || !activity.job_id}
+                onCheckedChange={(checked) => {
+                  if (!activity.job_id) return;
+
+                  const next = Boolean(checked);
+                  const prev = enabled;
+                  setEnabled(next);
+
+                  startTransition(async () => {
+                    try {
+                      const res = await updateCareActivity(supabase, activity.job_id!, { enabled: next });
+                      if ((res as any)?.error) setEnabled(prev);
+                    } catch {
+                      setEnabled(prev);
+                    }
+                  });
+                }}
+              />
+            </div>
           </div>
-          <Icon className="mt-1 h-5 w-5 text-gray-500" />
+
+          {/* Cron */}
+          <div className="flex items-center justify-between sm:justify-start gap-3">
+            <div className="flex items-center gap-2">
+              <span className="text-xs uppercase tracking-[0.14em] text-gray-400">Cron</span>
+              <span className="text-sm font-mono text-gray-800 whitespace-nowrap overflow-hidden text-ellipsis max-w-[160px] sm:max-w-none">
+                {activity.cron}
+              </span>
+            </div>
+
+            {/* Edit on mobile next to cron */}
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="h-8 rounded-full px-3 sm:hidden"
+              onClick={onEdit}
+            >
+              <Pencil className="mr-2 h-4 w-4" />
+              Edit
+            </Button>
+          </div>
         </div>
-      </CardHeader>
 
-      <CardContent className="space-y-4">
-        <p className="text-sm leading-6 text-gray-600">
-          {activity.instructions || "No custom instructions yet."}
-        </p>
+        {/* Right side: actions for sm+ */}
+        <div className="hidden sm:flex items-center gap-3">
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-8 rounded-full px-3"
+            onClick={onEdit}
+          >
+            <Pencil className="mr-2 h-4 w-4" />
+            Edit
+          </Button>
 
-        <div className="grid gap-3 text-sm text-gray-500 sm:grid-cols-3">
-          <div>
-            <p className="text-xs uppercase tracking-[0.14em] text-gray-400">Status</p>
-            <p className="mt-1 font-medium text-gray-800">
-              {activity.enabled ? "Enabled" : "Disabled"}
-            </p>
-          </div>
-          <div>
-            <p className="text-xs uppercase tracking-[0.14em] text-gray-400">Timezone</p>
-            <p className="mt-1 font-medium text-gray-800">{activity.timezone}</p>
-          </div>
-          <div>
-            <p className="text-xs uppercase tracking-[0.14em] text-gray-400">Cron</p>
-            <p className="mt-1 font-mono text-gray-800">{activity.cron}</p>
-          </div>
+          <Switch
+            id={`activity-enabled-${activity.job_id ?? "draft"}`}
+            checked={enabled}
+            disabled={isPending || !activity.job_id}
+            onCheckedChange={(checked) => {
+              if (!activity.job_id) return;
+
+              const next = Boolean(checked);
+              const prev = enabled;
+              setEnabled(next);
+
+              startTransition(async () => {
+                try {
+                  const res = await updateCareActivity(supabase, activity.job_id!, { enabled: next });
+                  if ((res as any)?.error) setEnabled(prev);
+                } catch {
+                  setEnabled(prev);
+                }
+              });
+            }}
+          />
         </div>
-
-        <Button
-          type="button"
-          variant="outline"
-          size="sm"
-          className="rounded-full"
-          onClick={onEdit}
-        >
-          <Pencil className="mr-2 h-4 w-4" />
-          Edit activity
-        </Button>
-      </CardContent>
-    </Card>
+      </div>
+    </div>
+  </CardContent>
+</Card>
   );
 }
 
 function CareActivityEditor({
   caregiverId,
   patientId,
-  patientTimezone,
   initialActivity,
   initialType,
   mode,
@@ -423,7 +494,6 @@ function CareActivityEditor({
 }: {
   caregiverId: string;
   patientId: string;
-  patientTimezone: string;
   initialActivity?: ICareActivity;
   initialType?: CareActivityType;
   mode: "create" | "edit";
@@ -438,7 +508,7 @@ function CareActivityEditor({
   const [formState, setFormState] = useState<CareActivityFormState>(
     initialActivity
       ? activityToFormState(initialActivity)
-      : createDefaultFormState(initialType ?? "guess_flag", patientTimezone),
+      : createDefaultFormState(initialType ?? "guess_flag"),
   );
 
   useEffect(() => {
@@ -447,8 +517,8 @@ function CareActivityEditor({
       return;
     }
 
-    setFormState(createDefaultFormState(initialType ?? "guess_flag", patientTimezone));
-  }, [initialActivity, initialType, patientTimezone]);
+    setFormState(createDefaultFormState(initialType ?? "guess_flag"));
+  }, [initialActivity, initialType]);
 
   const generatedCron = useMemo(() => buildCron(formState), [formState]);
   const typeConfig = ACTIVITY_TYPE_OPTIONS.find((item) => item.value === formState.type);
@@ -485,21 +555,17 @@ function CareActivityEditor({
     setIsSaving(true);
 
     const payload = {
-      caregiver_id: caregiverId,
       patient_id: patientId,
       type: formState.type,
       title: formState.title.trim(),
       instructions: formState.instructions.trim(),
       cron: generatedCron,
-      timezone: formState.timezone,
       enabled: formState.enabled,
-      starts_at: formState.startsOn ? `${formState.startsOn}T00:00:00.000Z` : null,
-      ends_at: formState.endsOn ? `${formState.endsOn}T23:59:59.999Z` : null,
     };
 
     const savedActivity = mode === "create"
       ? await createCareActivity(supabase, payload)
-      : await updateCareActivity(supabase, initialActivity!.activity_id, payload);
+      : await updateCareActivity(supabase, initialActivity!.job_id, payload);
 
     setIsSaving(false);
 
@@ -520,7 +586,7 @@ function CareActivityEditor({
     }
 
     setIsDeleting(true);
-    const removed = await deleteCareActivity(supabase, initialActivity.activity_id);
+    const removed = await deleteCareActivity(supabase, initialActivity.job_id);
     setIsDeleting(false);
 
     if (!removed) {
@@ -531,7 +597,7 @@ function CareActivityEditor({
       return;
     }
 
-    onDeleted(initialActivity.activity_id);
+    onDeleted(initialActivity.job_id);
   };
 
   return (
@@ -547,20 +613,6 @@ function CareActivityEditor({
             Fine-tune the activity content and schedule for this patient.
           </p>
         </div>
-
-        <div className="flex items-center gap-2">
-          <Label
-            htmlFor={`activity-enabled-${initialActivity?.activity_id ?? "draft"}`}
-            className="text-sm text-gray-500"
-          >
-            Enabled
-          </Label>
-          <Switch
-            id={`activity-enabled-${initialActivity?.activity_id ?? "draft"}`}
-            checked={formState.enabled}
-            onCheckedChange={(checked) => updateForm("enabled", checked)}
-          />
-        </div>
       </div>
 
       <div className="grid gap-4 md:grid-cols-2">
@@ -569,7 +621,7 @@ function CareActivityEditor({
           <Select
             value={formState.type}
             onValueChange={(value: CareActivityType) => {
-              const nextDefaults = createDefaultFormState(value, formState.timezone);
+              const nextDefaults = createDefaultFormState(value);
               setFormState((current) => ({
                 ...current,
                 type: value,
@@ -624,22 +676,14 @@ function CareActivityEditor({
 
           <div className="grid gap-4 md:grid-cols-2">
             <div className="space-y-2">
-              <Label>Timezone</Label>
-              <Select
-                value={formState.timezone}
-                onValueChange={(value) => updateForm("timezone", value)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select timezone" />
-                </SelectTrigger>
-                <SelectContent className="max-h-72">
-                  {IANA_TIMEZONES.map((timeZone) => (
-                    <SelectItem key={timeZone} value={timeZone}>
-                      {timeZone}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+<div className="space-y-2">
+              <Label>Time</Label>
+              <Input
+                type="time"
+                value={formState.time}
+                onChange={(event) => updateForm("time", event.target.value)}
+              />
+            </div>
             </div>
 
             <div className="space-y-2">
@@ -659,36 +703,6 @@ function CareActivityEditor({
               </Select>
             </div>
           </div>
-
-          <div className="grid gap-4 md:grid-cols-3">
-            <div className="space-y-2">
-              <Label>Time</Label>
-              <Input
-                type="time"
-                value={formState.time}
-                onChange={(event) => updateForm("time", event.target.value)}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label>Starts on</Label>
-              <Input
-                type="date"
-                value={formState.startsOn}
-                onChange={(event) => updateForm("startsOn", event.target.value)}
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label>Ends on</Label>
-              <Input
-                type="date"
-                value={formState.endsOn}
-                onChange={(event) => updateForm("endsOn", event.target.value)}
-              />
-            </div>
-          </div>
-
           {formState.frequency === "weekly" ? (
             <div className="space-y-2">
               <Label>Day of week</Label>
@@ -784,7 +798,6 @@ function CareActivityEditor({
 
 function createDefaultFormState(
   type: CareActivityType,
-  timezone: string,
 ): CareActivityFormState {
   const typeConfig = ACTIVITY_TYPE_OPTIONS.find((item) => item.value === type)!;
 
@@ -792,14 +805,11 @@ function createDefaultFormState(
     type,
     title: typeConfig.label,
     instructions: "",
-    timezone: timezone || "UTC",
     enabled: true,
     frequency: "daily",
     weekday: "MON",
     daysOfWeek: ["MON", "WED", "FRI"],
     time: "09:00",
-    startsOn: "",
-    endsOn: "",
   };
 }
 
@@ -810,14 +820,11 @@ function activityToFormState(activity: ICareActivity): CareActivityFormState {
     type: activity.type,
     title: activity.title,
     instructions: activity.instructions,
-    timezone: activity.timezone || "UTC",
     enabled: activity.enabled,
     frequency: parsed.frequency,
     weekday: parsed.weekday,
     daysOfWeek: parsed.daysOfWeek,
     time: parsed.time,
-    startsOn: activity.starts_at ? activity.starts_at.slice(0, 10) : "",
-    endsOn: activity.ends_at ? activity.ends_at.slice(0, 10) : "",
   };
 }
 
@@ -832,14 +839,6 @@ function validateActivityForm(formState: CareActivityFormState) {
 
   if (formState.frequency === "specific_days" && formState.daysOfWeek.length === 0) {
     return "Pick at least one day of the week.";
-  }
-
-  if (
-    formState.startsOn &&
-    formState.endsOn &&
-    new Date(formState.endsOn).getTime() < new Date(formState.startsOn).getTime()
-  ) {
-    return "End date must be on or after the start date.";
   }
 
   return null;

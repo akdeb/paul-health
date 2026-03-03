@@ -20,7 +20,6 @@ import { useMediaQuery } from "@/hooks/useMediaQuery";
 import { createClient } from "@/utils/supabase/client";
 import { updateActionSessionTime } from "@/db/actions";
 import {
-  buildCharacterInstructions,
   buildOpeningTurnPrompt,
   ConversationTarget,
 } from "./lib/promptContext";
@@ -135,14 +134,16 @@ function OpenAIRealtimeApp({
 
   useEffect(() => {
     if (sessionStatus === "CONNECTED") {
-      updateSession(true);
+      void updateSession(true);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sessionStatus]);
 
   const fetchEphemeralKey = async (): Promise<string | null> => {
     logClientEvent({ url: "/session" }, "fetch_session_token_request");
-    const tokenResponse = await fetch("/api/session");
+    const tokenResponse = await fetch(
+      `/api/session?conversationTarget=${conversationTarget}`,
+    );
     const data = await tokenResponse.json();
     logServerEvent(data, "fetch_session_token_response");
 
@@ -250,6 +251,18 @@ function OpenAIRealtimeApp({
     );
   };
 
+  const fetchSystemPrompt = async (): Promise<string> => {
+    const response = await fetch(
+      `/api/realtime/prompt?conversationTarget=${conversationTarget}`,
+    );
+    if (!response.ok) {
+      throw new Error("Failed to fetch realtime prompt");
+    }
+
+    const data = await response.json() as { prompt: string };
+    return data.prompt;
+  };
+
   const sendSimulatedUserMessage = (text: string) => {
     const id = uuidv4().slice(0, 32);
     addTranscriptMessage(id, "user", text, true);
@@ -269,15 +282,13 @@ function OpenAIRealtimeApp({
     sendClientEvent({ type: "response.create" }, "(trigger response after simulated user text message)");
   };
 
-  const updateSession = (shouldTriggerResponse: boolean) => {
+  const updateSession = async (shouldTriggerResponse: boolean) => {
+    const instructions = await fetchSystemPrompt();
     const sessionUpdateEvent = {
       type: "session.update",
       session: {
-        instructions: buildCharacterInstructions(
-          personality.character_prompt,
-          conversationTarget,
-        ),
-        voice: personality.oai_voice,
+        instructions,
+        voice: personality.voice,
       },
     };
 
