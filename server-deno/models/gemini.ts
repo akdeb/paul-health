@@ -219,7 +219,10 @@ export const connectToGemini = async ({
                 { text: firstMessage },
             ],
         }];
-        geminiSession?.sendClientContent({ turns: inputTurns });
+        geminiSession?.sendClientContent({
+            turns: inputTurns,
+            turnComplete: true,
+        });
         processGeminiTurns();
     } catch (e: unknown) {
         console.log(`Error connecting to Gemini: ${e}`);
