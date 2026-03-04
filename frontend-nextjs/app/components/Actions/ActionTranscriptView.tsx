@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { ArrowLeft, Bot, MessageSquareText } from "lucide-react";
+import { ArrowLeft, Bot, ClockIcon, MessageSquareText } from "lucide-react";
 
 const formatTimestamp = (timestamp?: string) => {
   if (!timestamp) {
@@ -61,17 +61,17 @@ export default function ActionTranscriptView({
           <ArrowLeft className="h-4 w-4" />
           Back to actions
         </Link>
-        <div className="rounded-3xl border border-gray-200 bg-white px-6 py-5">
+        <div className="rounded-3xl bg-white px-6 py-5">
           <div className="flex flex-wrap items-center gap-3">
             <div className="rounded-2xl bg-gray-100 p-2 text-gray-700">
               {icon}
             </div>
             <div>
-              <h1 className="text-3xl font-normal text-gray-950">
+              <h1 className="text-xl font-bold text-gray-950">
                 {getActionTitle(action.type)}
               </h1>
-              <p className="mt-1 text-sm text-gray-500">
-                {formatTimestamp(action.created_at)} · Session length {formatSessionTime(action.session_time)}
+              <p className="mt-1 flex items-center gap-2 text-sm text-gray-500">
+                {formatTimestamp(action.created_at)} · <ClockIcon className="h-4 w-4" /> {formatSessionTime(action.session_time)}
               </p>
             </div>
           </div>
@@ -83,7 +83,7 @@ export default function ActionTranscriptView({
           No transcript was stored for this action.
         </div>
       ) : (
-        <div className="rounded-[32px] border border-gray-200 bg-white p-4">
+        <div className="rounded-[32px] bg-white p-4">
           <div className="flex flex-col gap-4">
             {conversations.map((conversation) => {
               const isUser = conversation.role === "user" || conversation.role === "doctor";

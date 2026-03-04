@@ -10,7 +10,7 @@ export const createAction = async (
         jobId = null,
     }: {
         userId: string;
-        type: Extract<ActionType, "web_chat" | "device_chat">;
+        type: ActionType;
         metadata?: ActionMetadata;
         sessionTime?: number;
         jobId?: string | null;

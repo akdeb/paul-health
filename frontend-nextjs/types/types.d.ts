@@ -141,7 +141,6 @@ declare global {
         | "device_chat"
 
     interface ActionMetadata {
-        [key: string]: any;
         text?: string;
         ai_summary?: string;
     }

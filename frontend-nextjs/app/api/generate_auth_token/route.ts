@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import jwt from "jsonwebtoken";
 import { createClient } from "@/utils/supabase/server";
+import { createAction } from "@/db/actions";
 
 const ALGORITHM = "HS256";
 const skipDeviceRegistration =
@@ -63,6 +64,7 @@ const getDevUser = async () => {
 
 export async function GET(req: Request) {
     try {
+        const supabase = await createClient();
         const { searchParams } = new URL(req.url);
         const macAddress = searchParams.get("macAddress");
 
@@ -109,6 +111,23 @@ export async function GET(req: Request) {
         );
 
         const timezone = user.patient?.timezone ?? "UTC";
+
+        await Promise.all([
+            createAction(supabase, {
+                userId: user.user_id,
+                type: "device_event",
+                metadata: { text: "Wifi connected" },
+                sessionTime: 0,
+                jobId: null,
+            }),
+            createAction(supabase, {
+                userId: user.user_id,
+                type: "device_event",
+                metadata: { text: "Device registered" },
+                sessionTime: 0,
+                jobId: null,
+            }),
+        ]);
 
         return NextResponse.json({ token, timezone });
     } catch (error) {

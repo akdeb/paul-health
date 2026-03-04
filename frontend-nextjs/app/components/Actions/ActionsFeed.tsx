@@ -173,6 +173,8 @@ export default function ActionsFeed({
       {renderedActions.map((action) => {
         const Icon = getActionIcon(action.type);
         const isTranscriptAction = action.type === "web_chat" || action.type === "device_chat";
+        const metadataText =
+          typeof action.metadata?.text === "string" ? action.metadata.text : null;
 
         const card = (
           <div className="rounded-3xl border border-gray-200 bg-white px-5 py-4 transition hover:border-gray-300 hover:shadow-sm">
@@ -195,6 +197,11 @@ export default function ActionsFeed({
                   <p className="mt-1 text-sm text-gray-500">
                     {formatTimestamp(action.created_at)}
                   </p>
+                  {metadataText ? (
+                    <p className="mt-3 text-sm text-gray-700">
+                      {metadataText}
+                    </p>
+                  ) : null}
                   <p className="mt-3 flex items-center gap-2 text-sm text-gray-700">
                     <ClockIcon className="h-4 w-4" /> {formatSessionTime(action.session_time)}
                   </p>
