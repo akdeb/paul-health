@@ -204,8 +204,8 @@ void touchTask(void* parameter) {
 }
 
 void setupDeviceMetadata() {
-    quickAuthTokenReset();
-    quickFactoryResetDevice();
+    // quickAuthTokenReset();
+    // quickFactoryResetDevice();
 
     deviceState = IDLE;
 

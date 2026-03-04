@@ -72,11 +72,12 @@ wss.on("connection", async (ws: WSWebSocket, payload: IPayload) => {
         supabase,
         user.patient?.patient_id ?? user.patient_id,
     );
-    const firstMessage = createFirstMessage(payload);
-    const systemPrompt = createSystemPrompt(chatHistory, {
+    const sessionPayload = {
         ...payload,
         patientPhotos,
-    });
+    };
+    const firstMessage = createFirstMessage(sessionPayload);
+    const systemPrompt = createSystemPrompt(chatHistory, sessionPayload);
 
     const provider = user.personality?.provider;
 
@@ -113,7 +114,7 @@ wss.on("connection", async (ws: WSWebSocket, payload: IPayload) => {
     // Common provider args
     const providerArgs: ProviderArgs = {
         ws,
-        payload,
+        payload: sessionPayload,
         connectionPcmFile,
         firstMessage,
         systemPrompt,

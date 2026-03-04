@@ -22,6 +22,7 @@ export const connectToGemini = async ({
 }: ProviderArgs) => {
     const { user, supabase } = payload;
     const voiceName = user.personality?.voice ?? defaultGeminiVoice;
+    const patientPhotos = payload.patientPhotos ?? [];
 
     const opus = createOpusPacketizer((packet) => ws.send(packet));
 
@@ -203,7 +204,20 @@ export const connectToGemini = async ({
         // Send first message if available
         const inputTurns = [{
             role: "user",
-            parts: [{ text: firstMessage }],
+            parts: [
+                ...(patientPhotos.length > 0
+                    ? [{
+                        text: "These are reference photos of the patient. Use them as private visual context to better ground the conversation in familiar people, scenes, and objects. Do not explicitly mention that you were shown images unless it becomes directly relevant.",
+                    },
+                    ...patientPhotos.map((photo) => ({
+                        inlineData: {
+                            mimeType: photo.mimeType,
+                            data: photo.data,
+                        },
+                    }))]
+                    : []),
+                { text: firstMessage },
+            ],
         }];
         geminiSession?.sendClientContent({ turns: inputTurns });
         processGeminiTurns();

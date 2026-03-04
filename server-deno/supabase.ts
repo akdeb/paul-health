@@ -1,3 +1,4 @@
+import { Buffer } from "node:buffer";
 import { createClient, SupabaseClient } from "jsr:@supabase/supabase-js@2";
 import { decryptSecret } from "./utils.ts";
 
@@ -37,17 +38,16 @@ export const getUserByEmail = async (
 export const getPatientPhotos = async (
     supabase: SupabaseClient,
     patientId: string | null | undefined,
-): Promise<string[]> => {
+): Promise<IPatientPhotoContext[]> => {
     if (!patientId) {
         return [];
     }
 
     const { data, error } = await supabase
         .from("photos")
-        .select("caption")
+        .select("url")
         .eq("patient_id", patientId)
         .eq("type", "album")
-        .not("caption", "is", null)
         .order("created_at", { ascending: false });
 
     if (error) {
@@ -55,9 +55,41 @@ export const getPatientPhotos = async (
         return [];
     }
 
-    return (data ?? [])
-        .map((photo) => photo.caption?.trim())
-        .filter((caption): caption is string => Boolean(caption));
+    const photoUrls = (data ?? [])
+        .map((photo) => photo.url?.trim())
+        .filter((url): url is string => Boolean(url))
+        .slice(0, 4);
+
+    const photos = await Promise.all(
+        photoUrls.map(async (url) => {
+            try {
+                const response = await fetch(url);
+                if (!response.ok) {
+                    return null;
+                }
+
+                const mimeType = response.headers.get("content-type")?.split(";")[0]?.trim();
+                if (!mimeType || !mimeType.startsWith("image/")) {
+                    return null;
+                }
+
+                const arrayBuffer = await response.arrayBuffer();
+                if (arrayBuffer.byteLength === 0 || arrayBuffer.byteLength > 4 * 1024 * 1024) {
+                    return null;
+                }
+
+                return {
+                    mimeType,
+                    data: Buffer.from(arrayBuffer).toString("base64"),
+                } satisfies IPatientPhotoContext;
+            } catch (error) {
+                console.error("Failed to fetch patient photo asset:", error);
+                return null;
+            }
+        }),
+    );
+
+    return photos.filter((photo): photo is IPatientPhotoContext => photo !== null);
 };
 
 export const getDeviceInfo = async (
@@ -152,7 +184,6 @@ const formatList = (items: string[] | undefined, fallback = "None provided") => 
 
 const getPatientContextTemplate = (
     patient: IPatient | undefined,
-    photoCaptions: string[] | undefined,
 ) => {
     if (!patient) {
         return "PATIENT CONTEXT:\nNo patient record is attached to this user yet.";
@@ -169,7 +200,6 @@ Past jobs: ${formatList(patient.jobs)}
 Relations: ${formatList(patient.relations)}
 Stories: ${formatList(patient.stories)}
 Topics to avoid: ${formatList(patient.avoid)}
-Photo captions: ${formatList(photoCaptions, "No photo captions available")}
 `;
 };
 
@@ -237,7 +267,7 @@ Your Voice Description: ${[
 
 Your Character Description: ${payload.user.personality?.character_prompt}
 
-${getPatientContextTemplate(payload.user.patient, payload.patientPhotos)}
+${getPatientContextTemplate(payload.user.patient)}
 
 The default language is: ${payload.user.language.name} but you must switch to any other language if the user asks for it.
 

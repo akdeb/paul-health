@@ -39,7 +39,7 @@ declare global {
         user: IUser;
         supabase: SupabaseClient;
         timestamp: string;
-        patientPhotos?: string[];
+        patientPhotos?: IPatientPhotoContext[];
     }
 
     interface IDevice {
@@ -201,6 +201,11 @@ declare global {
         caption: string;
         type: "profile" | "album";
         patient_id: string;
+    }
+
+    interface IPatientPhotoContext {
+        mimeType: string;
+        data: string;
     }
 
     type CareActivityType =
