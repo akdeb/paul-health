@@ -200,7 +200,7 @@ export const connectToGemini = async ({
             config: config,
         });
 
-        console.log("Connected to Gemini successfully!");
+        console.log("Connected to Gemini successfully!", patientPhotos);
         // Send first message if available
         const inputTurns = [{
             role: "user",
