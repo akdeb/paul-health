@@ -172,7 +172,7 @@ export default async function Home() {
                 </p>
                 <div className="mt-5 flex flex-wrap gap-3">
                     <Button asChild variant="primary">
-                        <Link href="/home/care-plan">Open Care Plan</Link>
+                        <Link href="/home/care-plan">Open {dbUser.patient?.name.split(" ")[0] ?? "Patient"}'s Care Plan</Link>
                     </Button>
                     <Button asChild variant="outline">
                         <Link href="/home/settings/patient">Patient</Link>
