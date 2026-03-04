@@ -50,6 +50,18 @@ const getActionLabel = (type: ActionType) => {
   }
 };
 
+const getActionTitle = (type: ActionType) => {
+  switch (type) {
+    case "web_chat":
+    case "device_chat":
+      return "Conversation";
+    case "device_event":
+      return "Device event";
+    default:
+      return "Action";
+  }
+};
+
 const getActionIcon = (type: ActionType) => {
   switch (type) {
     case "web_chat":
@@ -60,6 +72,19 @@ const getActionIcon = (type: ActionType) => {
       return Cpu;
     default:
       return Cpu;
+  }
+};
+
+const getActionTagClasses = (type: ActionType) => {
+  switch (type) {
+    case "web_chat":
+      return "bg-blue-500 text-white";
+    case "device_chat":
+      return "bg-emerald-500 text-white";
+    case "device_event":
+      return "bg-amber-500 text-white";
+    default:
+      return "bg-gray-500 text-white";
   }
 };
 
@@ -159,8 +184,13 @@ export default function ActionsFeed({
                 <div className="min-w-0">
                   <div className="flex flex-wrap items-center gap-2">
                     <h2 className="text-base font-semibold text-gray-900">
-                      {getActionLabel(action.type)}
+                      {getActionTitle(action.type)}
                     </h2>
+                    <span
+                      className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${getActionTagClasses(action.type)}`}
+                    >
+                      {getActionLabel(action.type)}
+                    </span>
                   </div>
                   <p className="mt-1 text-sm text-gray-500">
                     {formatTimestamp(action.created_at)}

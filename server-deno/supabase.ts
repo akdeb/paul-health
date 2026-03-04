@@ -37,15 +37,17 @@ export const getUserByEmail = async (
 export const getPatientPhotos = async (
     supabase: SupabaseClient,
     patientId: string | null | undefined,
-): Promise<IPhoto[]> => {
+): Promise<string[]> => {
     if (!patientId) {
         return [];
     }
 
     const { data, error } = await supabase
         .from("photos")
-        .select("*")
+        .select("caption")
         .eq("patient_id", patientId)
+        .eq("type", "album")
+        .not("caption", "is", null)
         .order("created_at", { ascending: false });
 
     if (error) {
@@ -53,7 +55,9 @@ export const getPatientPhotos = async (
         return [];
     }
 
-    return (data ?? []) as IPhoto[];
+    return (data ?? [])
+        .map((photo) => photo.caption?.trim())
+        .filter((caption): caption is string => Boolean(caption));
 };
 
 export const getDeviceInfo = async (
@@ -130,6 +134,7 @@ export const getChatHistory = async (
 
 const UserPromptTemplate = (user: IUser) => `
 YOU ARE TALKING TO someone with a personality described as: ${user.personality?.title}.
+You are a dementia-friendly AI companion for the patient.
 
 Do not ask for personal information.
 Your physical form is in the form of a physical object or a toy.
@@ -146,15 +151,11 @@ const formatList = (items: string[] | undefined, fallback = "None provided") => 
 
 const getPatientContextTemplate = (
     patient: IPatient | undefined,
-    photos: IPhoto[] | undefined,
+    photoCaptions: string[] | undefined,
 ) => {
     if (!patient) {
         return "PATIENT CONTEXT:\nNo patient record is attached to this user yet.";
     }
-
-    const photoCaptions = (photos ?? [])
-        .filter((photo) => photo.caption?.trim())
-        .map((photo) => photo.caption.trim());
 
     return `
 PATIENT CONTEXT:
@@ -171,11 +172,57 @@ Photo captions: ${formatList(photoCaptions, "No photo captions available")}
 `;
 };
 
+const getPatientLocalTime = (timestamp: string, timeZone?: string) => {
+    const resolvedTimeZone = timeZone?.trim() || "UTC";
+
+    try {
+        return new Intl.DateTimeFormat("en-US", {
+            timeZone: resolvedTimeZone,
+            weekday: "long",
+            month: "long",
+            day: "numeric",
+            hour: "numeric",
+            minute: "2-digit",
+            hour12: true,
+            timeZoneName: "short",
+        }).format(new Date(timestamp));
+    } catch (_error) {
+        return new Intl.DateTimeFormat("en-US", {
+            timeZone: "UTC",
+            weekday: "long",
+            month: "long",
+            day: "numeric",
+            hour: "numeric",
+            minute: "2-digit",
+            hour12: true,
+            timeZoneName: "short",
+        }).format(new Date(timestamp));
+    }
+};
+
+const DementiaCarePromptTemplate = `
+DEMENTIA-SAFE CONVERSATION INSTRUCTIONS:
+- Speak gently, warmly, and clearly.
+- Use short sentences and one idea at a time.
+- Start by stating the current local time naturally, then continue the conversation.
+- Offer reassurance before correction.
+- Do not argue, confront, or quiz the patient on facts they may not remember.
+- If the patient is confused, redirect softly toward familiar people, routines, stories, or calming topics.
+- Respect the listed topics to avoid.
+- Encourage dignity, calm, and emotional safety in every response.
+`;
+
 const getCommonPromptTemplate = (
     chatHistory: string,
     payload: IPayload,
     timestamp: string,
-) => `
+) => {
+    const patientLocalTime = getPatientLocalTime(
+        timestamp,
+        payload.user.patient?.timezone,
+    );
+
+    return `
 Your Voice Description: ${[
     payload.user.personality?.voice_prompt?.trim() ?? "",
     payload.user.personality?.accent ? `Accent: ${payload.user.personality.accent}` : "",
@@ -188,20 +235,27 @@ ${getPatientContextTemplate(payload.user.patient, payload.patientPhotos)}
 
 The default language is: ${payload.user.language.name} but you must switch to any other language if the user asks for it.
 
-The current time is: ${timestamp}
+The current local time for the patient is: ${patientLocalTime}
+
+${DementiaCarePromptTemplate}
 
 This is the chat history.
 ${chatHistory}
 `;
+};
 
 export const createFirstMessage = (
     payload: IPayload,
 ): string => {
     const { timestamp, user } = payload;
+    const patientLocalTime = getPatientLocalTime(
+        timestamp,
+        user.patient?.timezone,
+    );
 
     const firstMessagePrompt = user.personality?.first_message_prompt
-        ? `Always start the conversation following these instructions from the user: ${user.personality?.first_message_prompt}`
-        : "Say hello to the user";
+        ? `Start by gently telling the patient the current local time, which is ${patientLocalTime}. Then follow these opening instructions from the user: ${user.personality?.first_message_prompt}`
+        : `Start by gently telling the patient the current local time, which is ${patientLocalTime}. Then say hello to the user.`;
 
     return firstMessagePrompt;
 };

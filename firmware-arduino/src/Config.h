@@ -45,6 +45,7 @@ extern const char *ssid_peronal;
 extern const char *password_personal;
 
 extern String authTokenGlobal;
+extern String timezoneGlobal;
 
 // WebSocket server details
 extern const char *ws_server;

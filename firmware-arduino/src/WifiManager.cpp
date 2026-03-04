@@ -46,14 +46,17 @@ bool isDeviceRegistered() {
             return false;
         }
 
-        String authToken = doc["token"];
+        String authToken = doc["token"] | "";
+        String timezone = doc["timezone"] | "UTC";
         if (!authToken.isEmpty()) {
             // Store the auth token in NVS
             preferences.begin("auth", false);
             preferences.putString("auth_token", authToken);
+            preferences.putString("timezone", timezone);
             preferences.end();
 
             authTokenGlobal = String(authToken);
+            timezoneGlobal = String(timezone);
             http.end();
             return true;
         }

@@ -39,7 +39,7 @@ const createSupabaseToken = (
 const getUserByMacAddress = async (macAddress: string) => {
     const supabase = await createClient();
     const { data, error } = await supabase.from("devices").select(
-        "*, user:user_id(*)",
+        "*, user:user_id(*, patient:patients!users_patient_id_fkey(timezone))",
     ).eq("mac_address", macAddress).single();
     if (error) {
         throw new Error(error.message);
@@ -49,7 +49,9 @@ const getUserByMacAddress = async (macAddress: string) => {
 
 const getDevUser = async () => {
     const supabase = await createClient();
-    const { data, error } = await supabase.from("users").select("*").eq(
+    const { data, error } = await supabase.from("users").select(
+        "*, patient:patients!users_patient_id_fkey(timezone)",
+    ).eq(
         "email",
         "admin@paulhealth.com",
     ).single();
@@ -106,7 +108,9 @@ export async function GET(req: Request) {
             null,
         );
 
-        return NextResponse.json({ token });
+        const timezone = user.patient?.timezone ?? "UTC";
+
+        return NextResponse.json({ token, timezone });
     } catch (error) {
         return NextResponse.json(
             {

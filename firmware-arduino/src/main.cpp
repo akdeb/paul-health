@@ -119,6 +119,7 @@ void getAuthTokenFromNVS()
 {
     preferences.begin("auth", false);
     authTokenGlobal = preferences.getString("auth_token", "");
+    timezoneGlobal = preferences.getString("timezone", "UTC");
     preferences.end();
 }
 
