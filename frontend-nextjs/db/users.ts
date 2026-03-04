@@ -56,7 +56,7 @@ export const getUserById = async (supabase: SupabaseClient, id: string) => {
     const { data, error } = await supabase
         .from("users")
         .select(
-            `*, patient:patients!users_patient_id_fkey(*), personality:personality_id(*), device:devices!users_device_id_fkey(volume)`,
+            `*, patient:patients!users_patient_id_fkey(*), personality:personality_id(*), device:devices!users_device_id_fkey(*)`,
         )
         .eq("user_id", id)
         .single();

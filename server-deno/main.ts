@@ -10,6 +10,7 @@ import {
     createFirstMessage,
     createSystemPrompt,
     getChatHistory,
+    getPatientPhotos,
     getSupabaseClient,
     updateActionSessionTime,
 } from "./supabase.ts";
@@ -67,8 +68,15 @@ wss.on("connection", async (ws: WSWebSocket, payload: IPayload) => {
         "device_chat",
         false,
     );
+    const patientPhotos = await getPatientPhotos(
+        supabase,
+        user.patient?.patient_id ?? user.patient_id,
+    );
     const firstMessage = createFirstMessage(payload);
-    const systemPrompt = createSystemPrompt(chatHistory, payload);
+    const systemPrompt = createSystemPrompt(chatHistory, {
+        ...payload,
+        patientPhotos,
+    });
 
     const provider = user.personality?.provider;
 
@@ -179,6 +187,7 @@ server.on("upgrade", async (req, socket, head) => {
             user,
             supabase,
             timestamp: new Date().toISOString(),
+            patientPhotos: [],
         });
     });
 });

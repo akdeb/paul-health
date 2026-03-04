@@ -23,7 +23,7 @@ export const getUserByEmail = async (
     email: string,
 ): Promise<IUser> => {
     const { data, error } = await supabase.from("users").select(
-        "*, language:languages(name), personality:personalities!users_personality_id_fkey(*), device:device_id(is_reset, is_ota, volume, mac_address)",
+        "*, language:languages(name), personality:personalities!users_personality_id_fkey(*), device:device_id(is_reset, is_ota, volume, mac_address), patient:patients!users_patient_id_fkey(*)",
     ).eq("email", email);
 
     console.log("data", data, error);
@@ -32,6 +32,28 @@ export const getUserByEmail = async (
         throw new Error("Failed to authenticate user");
     }
     return data[0] as IUser;
+};
+
+export const getPatientPhotos = async (
+    supabase: SupabaseClient,
+    patientId: string | null | undefined,
+): Promise<IPhoto[]> => {
+    if (!patientId) {
+        return [];
+    }
+
+    const { data, error } = await supabase
+        .from("photos")
+        .select("*")
+        .eq("patient_id", patientId)
+        .order("created_at", { ascending: false });
+
+    if (error) {
+        console.error("Failed to fetch patient photos:", error);
+        return [];
+    }
+
+    return (data ?? []) as IPhoto[];
 };
 
 export const getDeviceInfo = async (
@@ -114,20 +136,57 @@ Your physical form is in the form of a physical object or a toy.
 A person interacts with you by pressing a button, sends you instructions and you must respond in a concise conversational style.
 `;
 
+const formatList = (items: string[] | undefined, fallback = "None provided") => {
+    if (!items || items.length === 0) {
+        return fallback;
+    }
+
+    return items.join("; ");
+};
+
+const getPatientContextTemplate = (
+    patient: IPatient | undefined,
+    photos: IPhoto[] | undefined,
+) => {
+    if (!patient) {
+        return "PATIENT CONTEXT:\nNo patient record is attached to this user yet.";
+    }
+
+    const photoCaptions = (photos ?? [])
+        .filter((photo) => photo.caption?.trim())
+        .map((photo) => photo.caption.trim());
+
+    return `
+PATIENT CONTEXT:
+Name: ${patient.name}
+Age: ${patient.age}
+Gender: ${patient.gender}
+Address: ${patient.address || "Unknown"}
+About: ${patient.about || "No additional background provided"}
+Past jobs: ${formatList(patient.jobs)}
+Relations: ${formatList(patient.relations)}
+Stories: ${formatList(patient.stories)}
+Topics to avoid: ${formatList(patient.avoid)}
+Photo captions: ${formatList(photoCaptions, "No photo captions available")}
+`;
+};
+
 const getCommonPromptTemplate = (
     chatHistory: string,
-    user: IUser,
+    payload: IPayload,
     timestamp: string,
 ) => `
 Your Voice Description: ${[
-    user.personality?.voice_prompt?.trim() ?? "",
-    user.personality?.accent ? `Accent: ${user.personality.accent}` : "",
-    user.personality?.tone?.length ? `Tone: ${user.personality.tone.join(", ")}` : "",
+    payload.user.personality?.voice_prompt?.trim() ?? "",
+    payload.user.personality?.accent ? `Accent: ${payload.user.personality.accent}` : "",
+    payload.user.personality?.tone?.length ? `Tone: ${payload.user.personality.tone.join(", ")}` : "",
 ].filter(Boolean).join("\n")}
 
-Your Character Description: ${user.personality?.character_prompt}
+Your Character Description: ${payload.user.personality?.character_prompt}
 
-The default language is: ${user.language.name} but you must switch to any other language if the user asks for it.
+${getPatientContextTemplate(payload.user.patient, payload.patientPhotos)}
+
+The default language is: ${payload.user.language.name} but you must switch to any other language if the user asks for it.
 
 The current time is: ${timestamp}
 
@@ -156,7 +215,7 @@ export const createSystemPrompt = (
     console.log("chatHistoryString", chatHistoryString);
     const commonPrompt = getCommonPromptTemplate(
         chatHistoryString,
-        user,
+        payload,
         timestamp,
     );
 

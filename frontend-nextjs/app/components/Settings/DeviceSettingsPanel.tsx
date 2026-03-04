@@ -1,16 +1,17 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import _ from "lodash";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { Check, Loader2 } from "lucide-react";
 
 import { connectUserToDevice } from "@/app/actions";
-import { doesUserHaveADevice, updateDevice } from "@/db/devices";
+import { updateDevice } from "@/db/devices";
 import { createClient } from "@/utils/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
+import { useToast } from "@/components/ui/use-toast";
 
 interface DeviceSettingsPanelProps {
   selectedUser: IUser;
@@ -24,37 +25,51 @@ export default function DeviceSettingsPanel({
 }: DeviceSettingsPanelProps) {
   const router = useRouter();
   const supabase = useMemo(() => createClient(), []);
-  const [isConnected, setIsConnected] = useState(false);
+  const { toast } = useToast();
+  const [isConnected, setIsConnected] = useState(!!selectedUser.device?.device_id);
   const [deviceCode, setDeviceCode] = useState("");
   const [error, setError] = useState("");
   const [volume, setVolume] = useState([selectedUser.device?.volume ?? 50]);
-
-  const checkIfUserHasDevice = useCallback(async () => {
-    setIsConnected(await doesUserHaveADevice(supabase, selectedUser.user_id));
-  }, [selectedUser.user_id, supabase]);
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
-    void checkIfUserHasDevice();
-  }, [checkIfUserHasDevice]);
-
-  useEffect(() => {
+    setIsConnected(!!selectedUser.device?.device_id);
     setVolume([selectedUser.device?.volume ?? 50]);
-  }, [selectedUser.device?.volume]);
-
-  const debouncedUpdateVolume = _.debounce(async (nextVolume: number) => {
-    if (selectedUser.device?.device_id) {
-      await updateDevice(
-        supabase,
-        { volume: nextVolume },
-        selectedUser.device.device_id,
-      );
-      router.refresh();
-    }
-  }, 1000);
+  }, [selectedUser.device?.device_id, selectedUser.device?.volume]);
 
   const updateVolumeValue = (value: number[]) => {
     setVolume(value);
-    void debouncedUpdateVolume(value[0]);
+  };
+
+  const saveDeviceSettings = async () => {
+    if (!selectedUser.device?.device_id) {
+      toast({
+        description: "No registered device was found for this user.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    setIsSaving(true);
+    try {
+      await updateDevice(
+        supabase,
+        { volume: volume[0] },
+        selectedUser.device.device_id,
+      );
+      toast({
+        description: "Device settings saved.",
+      });
+      router.refresh();
+    } catch (saveError) {
+      console.error("Failed to save device settings", saveError);
+      toast({
+        description: "Device settings could not be saved.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -98,9 +113,11 @@ export default function DeviceSettingsPanel({
               } else {
                 setError("");
                 setDeviceCode("");
+                toast({
+                  description: "Device registered.",
+                });
                 router.refresh();
               }
-              void checkIfUserHasDevice();
             }}
           >
             Register
@@ -126,13 +143,21 @@ export default function DeviceSettingsPanel({
               value={volume}
               onValueChange={updateVolumeValue}
               className="w-full sm:max-w-sm"
-              defaultValue={[50]}
               max={100}
               min={1}
               step={1}
             />
-            <p className="min-w-10 text-sm text-gray-500">{volume}%</p>
+            <p className="min-w-10 text-sm text-gray-500">{volume[0]}%</p>
           </div>
+          <Button
+            onClick={saveDeviceSettings}
+            disabled={isSaving}
+            className="rounded-full flex flex-row gap-2 items-center"
+            size="sm"
+          >
+            {isSaving ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save"}
+            {!isSaving && <Check className="w-4 h-4" />}
+          </Button>
         </div>
       ) : null}
     </section>

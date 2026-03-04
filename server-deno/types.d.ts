@@ -39,6 +39,7 @@ declare global {
         user: IUser;
         supabase: SupabaseClient;
         timestamp: string;
+        patientPhotos?: IPhoto[];
     }
 
     interface IDevice {

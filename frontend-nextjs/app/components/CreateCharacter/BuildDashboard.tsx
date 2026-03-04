@@ -1,15 +1,15 @@
 "use client";
 
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { Check, Send } from "lucide-react";
-import { getPersonalityById, updatePersonality } from "@/db/personalities";
-import { toast } from "@/components/ui/use-toast";
-import { z } from "zod";
+import { Check, Loader2 } from "lucide-react";
+import { updatePersonality } from "@/db/personalities";
+import { useToast } from "@/components/ui/use-toast";
 import { geminiVoices } from "@/lib/data";
 import EmojiComponent from "./EmojiComponent";
 
@@ -41,38 +41,13 @@ interface SettingsDashboardProps {
   allLanguages: ILanguage[];
 }
 
-const formSchema = z.object({
-  assistantName: z
-    .string()
-    .min(2, "Minimum 2 characters")
-    .max(50, "Maximum 50 characters"),
-  voice: z.string().min(1, "Voice selection is required"),
-  accent: z.string().min(1, "Pick an accent"),
-  tones: z.array(z.string()).min(1, "Pick at least one tone"),
-  voiceInstructions: z
-    .string()
-    .max(1000, "Maximum 1000 characters"),
-  customInstructions: z
-    .string()
-    .min(20, "Minimum 20 characters")
-    .max(1000, "Maximum 1000 characters"),
-  firstMessagePrompt: z
-    .string()
-    .min(20, "Minimum 20 characters")
-    .max(300, "Maximum 300 characters"),
-});
-
-type FormData = z.infer<typeof formSchema>;
-
 const SettingsDashboard: React.FC<SettingsDashboardProps> = ({
   selectedUser,
 }) => {
   const supabase = useMemo(() => createClient(), []);
+  const router = useRouter();
+  const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  const [personality, setPersonality] = useState<IPersonality | null>(
-    selectedUser.personality ?? null,
-  );
 
   const [formData, setFormData] = useState({
     assistantName: "",
@@ -84,22 +59,20 @@ const SettingsDashboard: React.FC<SettingsDashboardProps> = ({
     firstMessagePrompt: "",
   });
 
-  const [touchedFields, setTouchedFields] = useState<Record<string, boolean>>({});
-  const [formErrors, setFormErrors] = useState<Partial<Record<keyof FormData, string>>>({});
-
-  React.useEffect(() => {
-    const run = async () => {
-      if (selectedUser.personality_id) {
-        const p = await getPersonalityById(supabase, selectedUser.personality_id);
-        setPersonality(p);
-      }
-    };
-    void run();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedUser.personality_id]);
-
-  React.useEffect(() => {
-    if (!personality) return;
+  useEffect(() => {
+    const personality = selectedUser.personality;
+    if (!personality) {
+      setFormData({
+        assistantName: "",
+        voice: "",
+        accent: "",
+        tones: [],
+        voiceInstructions: "",
+        customInstructions: "",
+        firstMessagePrompt: "",
+      });
+      return;
+    }
 
     const voice = (personality.voice ?? "") as GeminiVoice | "";
     const assistantName = personality.title ?? "";
@@ -116,38 +89,7 @@ const SettingsDashboard: React.FC<SettingsDashboardProps> = ({
       customInstructions,
       firstMessagePrompt,
     });
-  }, [personality]);
-
-  const handleBlur = (field: keyof FormData) => {
-    // Mark the field as touched
-    setTouchedFields(prev => ({ ...prev, [field]: true }));
-
-    // Validate the field
-    validateField(field, formData[field] as any);
-  };
-
-  const validateField = (field: keyof FormData, value: any) => {
-    try {
-      formSchema.shape[field].parse(value);
-      // Clear error if validation passes
-      setFormErrors(prev => ({ ...prev, [field]: undefined }));
-    } catch (error: unknown) {
-      if (error instanceof z.ZodError) {
-        const zodError = error as z.ZodError;
-        setFormErrors(prev => ({ ...prev, [field]: zodError.errors[0].message }));
-      }
-    }
-  };
-
-  const handleInputChange = (field: keyof FormData, value: string) => {
-    const newFormData = { ...formData, [field]: value };
-    setFormData(newFormData);
-
-    // Only validate if the field has been touched before
-    if (touchedFields[field]) {
-      validateField(field, value);
-    }
-  };
+  }, [selectedUser.personality]);
 
   const toggleTag = (field: "tones", optionValue: string) => {
     setFormData((prev) => {
@@ -157,78 +99,61 @@ const SettingsDashboard: React.FC<SettingsDashboardProps> = ({
         : [...current, optionValue];
       return { ...prev, [field]: next };
     });
-
-    if (touchedFields[field]) {
-      const current = formData[field];
-      const next = current.includes(optionValue)
-        ? current.filter((v) => v !== optionValue)
-        : [...current, optionValue];
-      validateField(field, next);
-    }
   };
 
   const setSingleSelect = (field: "accent", optionValue: string) => {
     setFormData((prev) => ({ ...prev, [field]: optionValue }));
-    if (touchedFields[field]) {
-      validateField(field, optionValue);
-    }
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-
-    // Set submitting state to true
-    setIsSubmitting(true);
-
-    // Validate the entire form
-    const result = formSchema.safeParse(formData);
-    console.log(result);
-
-    if (!result.success) {
-      // Extract and set all validation errors
-      const errors: Partial<Record<keyof FormData, string>> = {};
-      result.error.errors.forEach(err => {
-        errors[err.path[0] as keyof FormData] = err.message;
+    if (
+      !formData.assistantName.trim() ||
+      !formData.voice ||
+      !formData.accent ||
+      formData.tones.length === 0 ||
+      !formData.customInstructions.trim() ||
+      !formData.firstMessagePrompt.trim()
+    ) {
+      toast({
+        title: "Missing required fields",
+        description: "Fill in the agent name, voice, accent, tone, custom instructions, and first message prompt before saving.",
+        variant: "destructive",
       });
-      setFormErrors(errors);
-      setIsSubmitting(false); // Reset submitting state
       return;
     }
+
+    setIsSubmitting(true);
 
     try {
       if (!selectedUser.personality_id) {
         throw new Error("No personality_id found for this user");
       }
 
-      const updated = await updatePersonality(supabase, selectedUser.personality_id, {
+      await updatePersonality(supabase, selectedUser.personality_id, {
         provider: "gemini",
-        title: formData.assistantName,
-        character_prompt: formData.customInstructions,
+        title: formData.assistantName.trim(),
+        character_prompt: formData.customInstructions.trim(),
         voice: formData.voice,
         accent: formData.accent,
         tone: formData.tones,
-        voice_prompt: formData.voiceInstructions,
-        first_message_prompt: formData.firstMessagePrompt,
+        voice_prompt: formData.voiceInstructions.trim(),
+        first_message_prompt: formData.firstMessagePrompt.trim(),
       });
-
-      if (updated) {
-        setPersonality(updated);
-        toast({
-          title: "Agent updated",
-          description: "Your agent settings have been updated!",
-          duration: 3000,
-        });
-      }
+      toast({
+        title: "Agent updated",
+        description: "Agent settings saved to personalities.",
+      });
+      router.refresh();
     } catch (error) {
       console.error("Error updating personality:", error);
       toast({
         title: "Error",
         description: "Failed to update your agent. Please try again.",
         variant: "destructive",
-        duration: 3000,
       });
     } finally {
-      setIsSubmitting(false); // Reset submitting state
+      setIsSubmitting(false);
     }
   };
 
@@ -260,13 +185,10 @@ const SettingsDashboard: React.FC<SettingsDashboardProps> = ({
               id="assistantName"
               placeholder="Nova"
               value={formData.assistantName}
-              onChange={(e) => handleInputChange("assistantName", e.target.value)}
-              onBlur={() => handleBlur("assistantName")}
+              onChange={(e) => setFormData((prev) => ({ ...prev, assistantName: e.target.value }))}
             />
             <p className="text-sm flex justify-between">
-              <span className={formErrors.assistantName ? "text-red-500" : "text-gray-500"}>
-                {formErrors.assistantName}
-              </span>
+              <span className="text-gray-500" />
               <span className="text-gray-500">{formData.assistantName.length}/50</span>
             </p>
           </div>
@@ -288,9 +210,6 @@ const SettingsDashboard: React.FC<SettingsDashboardProps> = ({
                     }`}
                     onClick={() => {
                       setFormData((prev) => ({ ...prev, voice: voice.id as GeminiVoice }));
-                      if (touchedFields.voice) {
-                        validateField("voice", voice.id);
-                      }
                     }}
                   >
                     <div className="flex flex-col">
@@ -317,11 +236,6 @@ const SettingsDashboard: React.FC<SettingsDashboardProps> = ({
                 ))}
               </div>
             </div>
-            <p className="text-sm">
-              <span className={formErrors.voice ? "text-red-500" : "text-gray-500"}>
-                {formErrors.voice}
-              </span>
-            </p>
           </div>
 
           <div className="space-y-2">
@@ -339,18 +253,12 @@ const SettingsDashboard: React.FC<SettingsDashboardProps> = ({
                         : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
                     }`}
                     onClick={() => setSingleSelect("accent", opt.value)}
-                    onBlur={() => handleBlur("accent")}
                   >
                     {opt.label} {opt.emoji}
                   </button>
                 );
               })}
             </div>
-            <p className="text-sm">
-              <span className={formErrors.accent ? "text-red-500" : "text-gray-500"}>
-                {formErrors.accent}
-              </span>
-            </p>
           </div>
 
           <div className="space-y-2">
@@ -368,18 +276,12 @@ const SettingsDashboard: React.FC<SettingsDashboardProps> = ({
                         : "border-gray-200 bg-white text-gray-700 hover:bg-gray-50"
                     }`}
                     onClick={() => toggleTag("tones", opt.value)}
-                    onBlur={() => handleBlur("tones")}
                   >
                     {!selected && "+"} {opt.label} {opt.emoji}
                   </button>
                 );
               })}
             </div>
-            <p className="text-sm">
-              <span className={formErrors.tones ? "text-red-500" : "text-gray-500"}>
-                {formErrors.tones}
-              </span>
-            </p>
           </div>
 
           <div className="space-y-2">
@@ -389,13 +291,10 @@ const SettingsDashboard: React.FC<SettingsDashboardProps> = ({
               placeholder="Describe how the assistant should sound beyond accent and tone, such as pacing, warmth, emphasis, or cadence."
               rows={4}
               value={formData.voiceInstructions}
-              onChange={(e) => handleInputChange("voiceInstructions", e.target.value)}
-              onBlur={() => handleBlur("voiceInstructions")}
+              onChange={(e) => setFormData((prev) => ({ ...prev, voiceInstructions: e.target.value }))}
             />
             <p className="text-sm flex justify-between">
-              <span className={formErrors.voiceInstructions ? "text-red-500" : "text-gray-500"}>
-                {formErrors.voiceInstructions}
-              </span>
+              <span className="text-gray-500" />
               <span className="text-gray-500">{formData.voiceInstructions.length}/1000</span>
             </p>
           </div>
@@ -407,13 +306,10 @@ const SettingsDashboard: React.FC<SettingsDashboardProps> = ({
               placeholder="How should the assistant act? What should it optimize for? Any do/don't rules?"
               rows={6}
               value={formData.customInstructions}
-              onChange={(e) => handleInputChange("customInstructions", e.target.value)}
-              onBlur={() => handleBlur("customInstructions")}
+              onChange={(e) => setFormData((prev) => ({ ...prev, customInstructions: e.target.value }))}
             />
             <p className="text-sm flex justify-between">
-              <span className={formErrors.customInstructions ? "text-red-500" : "text-gray-500"}>
-                {formErrors.customInstructions}
-              </span>
+              <span className="text-gray-500" />
               <span className="text-gray-500">{formData.customInstructions.length}/1000</span>
             </p>
           </div>
@@ -425,13 +321,10 @@ const SettingsDashboard: React.FC<SettingsDashboardProps> = ({
               placeholder="What should the assistant talk about first? (e.g., introduce itself and ask 2 questions)"
               rows={4}
               value={formData.firstMessagePrompt}
-              onChange={(e) => handleInputChange("firstMessagePrompt", e.target.value)}
-              onBlur={() => handleBlur("firstMessagePrompt")}
+              onChange={(e) => setFormData((prev) => ({ ...prev, firstMessagePrompt: e.target.value }))}
             />
             <p className="text-sm flex justify-between">
-              <span className={formErrors.firstMessagePrompt ? "text-red-500" : "text-gray-500"}>
-                {formErrors.firstMessagePrompt}
-              </span>
+              <span className="text-gray-500" />
               <span className="text-gray-500">{formData.firstMessagePrompt.length}/300</span>
             </p>
           </div>
@@ -452,7 +345,8 @@ size="sm"
             formData.firstMessagePrompt === ""
           }
         >
-          {isSubmitting ? "Saving..." : "Save"} {!isSubmitting && <Check className="w-4 h-4" />}
+          {isSubmitting ? <Loader2 className="h-4 w-4 animate-spin" /> : "Save"}
+          {!isSubmitting && <Check className="w-4 h-4" />}
         </Button>
       </form>
     </div>
