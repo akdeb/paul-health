@@ -204,13 +204,15 @@ void touchTask(void* parameter) {
 }
 
 void setupDeviceMetadata() {
-    // quickAuthTokenReset();
-    // quickFactoryResetDevice();
+    quickAuthTokenReset();
+    quickFactoryResetDevice();
 
     deviceState = IDLE;
 
     getAuthTokenFromNVS();
     getOTAStatusFromNVS();
+
+    Serial.println("Timezone: " + timezoneGlobal);
 
     if (otaState == OTA_IN_PROGRESS || otaState == OTA_COMPLETE) {
         deviceState = OTA;

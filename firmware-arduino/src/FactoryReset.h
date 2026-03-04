@@ -43,6 +43,7 @@ void setResetComplete() {
 void quickAuthTokenReset() {
     preferences.begin("auth", false);
     preferences.putString("auth_token", "");
+    preferences.putString("timezone", "");
     preferences.end();
 }
 
