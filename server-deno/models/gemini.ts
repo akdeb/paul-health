@@ -200,24 +200,26 @@ export const connectToGemini = async ({
             config: config,
         });
 
-        console.log("Connected to Gemini successfully!", patientPhotos);
+        console.log("Connected to Gemini successfully!", patientPhotos.length);
+
+        if (patientPhotos.length > 0) {
+            for (const photo of patientPhotos) {
+                geminiSession?.sendRealtimeInput({
+                    video: {
+                        mimeType: photo.mimeType,
+                        data: photo.data,
+                    },
+                });
+            }
+
+            // Let the live session ingest the visual frames before the opener.
+            await new Promise((resolve) => setTimeout(resolve, 150));
+        }
+
         // Send first message if available
         const inputTurns = [{
             role: "user",
-            parts: [
-                ...(patientPhotos.length > 0
-                    ? [{
-                        text: "These are reference photos of the patient. Use them as private visual context to better ground the conversation in familiar people, scenes, and objects. Do not explicitly mention that you were shown images unless it becomes directly relevant.",
-                    },
-                    ...patientPhotos.map((photo) => ({
-                        inlineData: {
-                            mimeType: photo.mimeType,
-                            data: photo.data,
-                        },
-                    }))]
-                    : []),
-                { text: firstMessage },
-            ],
+            parts: [{ text: firstMessage }],
         }];
         geminiSession?.sendClientContent({
             turns: inputTurns,
