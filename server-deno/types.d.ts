@@ -40,6 +40,7 @@ declare global {
         supabase: SupabaseClient;
         timestamp: string;
         patientPhotos?: IPatientPhotoContext[];
+        jobId: string | null;
     }
 
     interface IDevice {

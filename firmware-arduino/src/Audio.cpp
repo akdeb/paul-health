@@ -373,7 +373,8 @@ void websocketSetup(String server_domain, int port, String path)
     wsExtraHeaders =
         "Authorization: Bearer " + String(authTokenGlobal) + "\r\n" +
         "X-Wifi-Rssi: " + String(WiFi.RSSI()) + "\r\n" +
-        "X-Device-Mac: " + WiFi.macAddress();
+        "X-Device-Mac: " + WiFi.macAddress() + "\r\n" +
+        "X-Job-Id: " + (activeJobIdGlobal.isEmpty() ? String("null") : activeJobIdGlobal);
 
     xSemaphoreTake(wsMutex, portMAX_DELAY);
 

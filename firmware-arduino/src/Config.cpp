@@ -33,6 +33,10 @@ const uint16_t backend_port = 3000;
 
 String authTokenGlobal;
 String timezoneGlobal;
+String nextJobIdGlobal;
+uint64_t nextJobFireAtEpochGlobal = 0;
+uint64_t nextJobCheckAtEpochGlobal = 0;
+String activeJobIdGlobal;
 volatile DeviceState deviceState = IDLE;
 
 // I2S and Audio parameters

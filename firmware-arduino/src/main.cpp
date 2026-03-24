@@ -10,6 +10,7 @@
 #include "FactoryReset.h"
 #include "soc/soc.h"
 #include "soc/rtc_cntl_reg.h"
+#include <time.h>
 
 // #define WEBSOCKETS_DEBUG_LEVEL WEBSOCKETS_LEVEL_ALL
 
@@ -71,6 +72,28 @@ void enterSleep()
         touchSleepWakeUpEnable(TOUCH_PAD_NUM2, SLEEP_THRESHOLD);
     #endif
 
+    time_t now = time(nullptr);
+    uint64_t wakeEpoch = 0;
+
+    if (now > 0) {
+        if (nextJobFireAtEpochGlobal > static_cast<uint64_t>(now)) {
+            wakeEpoch = nextJobFireAtEpochGlobal;
+        }
+
+        if (
+            nextJobCheckAtEpochGlobal > static_cast<uint64_t>(now) &&
+            (wakeEpoch == 0 || nextJobCheckAtEpochGlobal < wakeEpoch)
+        ) {
+            wakeEpoch = nextJobCheckAtEpochGlobal;
+        }
+
+        if (wakeEpoch > static_cast<uint64_t>(now)) {
+            const uint64_t wakeDelaySeconds = wakeEpoch - static_cast<uint64_t>(now);
+            esp_sleep_enable_timer_wakeup(wakeDelaySeconds * 1000000ULL);
+            Serial.printf("Scheduled timer wake in %llu seconds\n", wakeDelaySeconds);
+        }
+    }
+
     esp_deep_sleep_start();
     delay(1000);
 }
@@ -120,6 +143,9 @@ void getAuthTokenFromNVS()
     preferences.begin("auth", false);
     authTokenGlobal = preferences.getString("auth_token", "");
     timezoneGlobal = preferences.getString("timezone", "UTC");
+    nextJobIdGlobal = preferences.getString("next_job_id", "");
+    nextJobFireAtEpochGlobal = preferences.getULong64("next_job_fire_at_epoch", 0);
+    nextJobCheckAtEpochGlobal = preferences.getULong64("next_job_check_at_epoch", 0);
     preferences.end();
 }
 

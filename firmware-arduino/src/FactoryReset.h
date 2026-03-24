@@ -44,6 +44,9 @@ void quickAuthTokenReset() {
     preferences.begin("auth", false);
     preferences.putString("auth_token", "");
     preferences.putString("timezone", "");
+    preferences.putString("next_job_id", "");
+    preferences.putULong64("next_job_fire_at_epoch", 0);
+    preferences.putULong64("next_job_check_at_epoch", 0);
     preferences.end();
 }
 
@@ -64,6 +67,11 @@ void quickFactoryResetDevice() {
 
     // clear auth token from global variable
     authTokenGlobal = "";
+    timezoneGlobal = "";
+    nextJobIdGlobal = "";
+    nextJobFireAtEpochGlobal = 0;
+    nextJobCheckAtEpochGlobal = 0;
+    activeJobIdGlobal = "";
 }
 
 /* factoryResetDevice
@@ -76,4 +84,3 @@ void factoryResetDevice() {
     setResetComplete();
     quickFactoryResetDevice();
 }
-

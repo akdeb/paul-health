@@ -46,6 +46,10 @@ extern const char *password_personal;
 
 extern String authTokenGlobal;
 extern String timezoneGlobal;
+extern String nextJobIdGlobal;
+extern uint64_t nextJobFireAtEpochGlobal;
+extern uint64_t nextJobCheckAtEpochGlobal;
+extern String activeJobIdGlobal;
 
 // WebSocket server details
 extern const char *ws_server;

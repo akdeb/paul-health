@@ -40,7 +40,7 @@ wss.on("connection", async (ws: WSWebSocket, payload: IPayload) => {
         type: "device_chat",
         metadata: {},
         sessionTime: 0,
-        jobId: null,
+        jobId: payload.jobId ?? null,
     });
 
     if (!action) {
@@ -148,13 +148,19 @@ server.on("upgrade", async (req, socket, head) => {
     let user: IUser;
     let supabase: SupabaseClient;
     let authToken: string;
+    let connectionJobId: string | null = null;
     try {
         const {
             authorization: authHeader,
             "x-wifi-rssi": rssi,
             "x-device-mac": deviceMac,
+            "x-job-id": jobIdHeader,
         } = req.headers;
         authToken = authHeader?.replace("Bearer ", "") ?? "";
+        const parsedJobId = (jobIdHeader as string | undefined)?.trim();
+        connectionJobId = parsedJobId && parsedJobId !== "null"
+            ? parsedJobId
+            : null;
         const wifiStrength = parseInt(rssi as string); // Convert to number
 
         // You can now use wifiStrength in your code
@@ -189,6 +195,7 @@ server.on("upgrade", async (req, socket, head) => {
             supabase,
             timestamp: new Date().toISOString(),
             patientPhotos: [],
+            jobId: connectionJobId,
         });
     });
 });
