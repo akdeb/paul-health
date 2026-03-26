@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { createClient } from "@/utils/supabase/client";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -48,6 +48,7 @@ const SettingsDashboard: React.FC<SettingsDashboardProps> = ({
   const router = useRouter();
   const { toast } = useToast();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const previewAudioRef = useRef<HTMLAudioElement | null>(null);
 
   const [formData, setFormData] = useState({
     assistantName: "",
@@ -90,6 +91,28 @@ const SettingsDashboard: React.FC<SettingsDashboardProps> = ({
       firstMessagePrompt,
     });
   }, [selectedUser.personality]);
+
+  useEffect(() => {
+    return () => {
+      if (previewAudioRef.current) {
+        previewAudioRef.current.pause();
+        previewAudioRef.current = null;
+      }
+    };
+  }, []);
+
+  const playVoicePreview = (voiceId: GeminiVoice) => {
+    if (previewAudioRef.current) {
+      previewAudioRef.current.pause();
+      previewAudioRef.current.currentTime = 0;
+    }
+
+    const audio = new Audio(`/gemini_voices/${voiceId}.wav`);
+    previewAudioRef.current = audio;
+    void audio.play().catch((error) => {
+      console.error("Failed to play voice preview", error);
+    });
+  };
 
   const toggleTag = (field: "tones", optionValue: string) => {
     setFormData((prev) => {
@@ -174,7 +197,7 @@ const SettingsDashboard: React.FC<SettingsDashboardProps> = ({
   };
 
   return (
-    <div className="overflow-hidden pb-2 flex flex-col pl-1">
+    <div className="pb-2 flex min-w-0 flex-col pl-1">
       <Heading />
 
       <form onSubmit={handleSubmit} className="space-y-6 mt-8 w-full pr-1">
@@ -198,42 +221,46 @@ const SettingsDashboard: React.FC<SettingsDashboardProps> = ({
             <p className="text-sm text-gray-500">
               Choose a Gemini voice for your assistant.
             </p>
-            <div className="overflow-x-auto w-fit px-2">
-              <div className="flex gap-3 py-2">
-                {geminiVoices.slice(0,3).map((voice: VoiceType) => (
-                  <div
-                    key={voice.id}
-                    className={`relative rounded-xl border-2 p-4 transition-all cursor-pointer hover:scale-[1.02] hover:shadow-lg w-48 flex-shrink-0 ${
-                      formData.voice === voice.id
-                        ? `border-blue-500 shadow-lg ${voice.color} ring-2 ring-blue-200`
-                        : `border-gray-200 hover:border-gray-300 ${voice.color} hover:shadow-md`
-                    }`}
-                    onClick={() => {
-                      setFormData((prev) => ({ ...prev, voice: voice.id as GeminiVoice }));
-                    }}
-                  >
-                    <div className="flex flex-col">
-                      <div className="flex flex-col items-center gap-3">
-                        {voice.emoji && (
-                          <div className="text-3xl">
-                            <EmojiComponent emoji={voice.emoji} />
+            <div className="w-full min-w-0 px-2">
+              <div className="w-full overflow-x-auto py-2 touch-pan-x">
+                <div className="flex w-max gap-3">
+                  {geminiVoices.map((voice: VoiceType) => (
+                    <div
+                      key={voice.id}
+                      className={`relative w-48 shrink-0 cursor-pointer rounded-xl border-2 p-4 transition-all hover:scale-[1.02] hover:shadow-lg ${
+                        formData.voice === voice.id
+                          ? `border-blue-500 shadow-lg ${voice.color} ring-2 ring-blue-200`
+                          : `border-gray-200 hover:border-gray-300 ${voice.color} hover:shadow-md`
+                      }`}
+                      onClick={() => {
+                        const voiceId = voice.id as GeminiVoice;
+                        setFormData((prev) => ({ ...prev, voice: voiceId }));
+                        playVoicePreview(voiceId);
+                      }}
+                    >
+                      <div className="flex flex-col">
+                        <div className="flex flex-col items-center gap-3">
+                          {voice.emoji && (
+                            <div className="text-3xl">
+                              <EmojiComponent emoji={voice.emoji} />
+                            </div>
+                          )}
+                          <div className="flex flex-col text-center">
+                            <span className="font-semibold text-gray-900">{voice.name}</span>
+                            <span className="text-xs text-gray-600 mt-1">{voice.description}</span>
+                          </div>
+                        </div>
+                        {formData.voice === voice.id && (
+                          <div className="absolute -top-2 -right-2">
+                            <div className="bg-blue-500 text-white rounded-full p-1.5 shadow-lg">
+                              <Check size={12} />
+                            </div>
                           </div>
                         )}
-                        <div className="flex flex-col text-center">
-                          <span className="font-semibold text-gray-900">{voice.name}</span>
-                          <span className="text-xs text-gray-600 mt-1">{voice.description}</span>
-                        </div>
                       </div>
-                      {formData.voice === voice.id && (
-                        <div className="absolute -top-2 -right-2">
-                          <div className="bg-blue-500 text-white rounded-full p-1.5 shadow-lg">
-                            <Check size={12} />
-                          </div>
-                        </div>
-                      )}
                     </div>
-                  </div>
-                ))}
+                  ))}
+                </div>
               </div>
             </div>
           </div>

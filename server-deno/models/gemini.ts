@@ -30,7 +30,7 @@ export const connectToGemini = async ({
 
     // Initialize Google GenAI
     const ai = new GoogleGenAI({ apiKey: geminiApiKey });
-    const model = "gemini-2.5-flash-native-audio-preview-09-2025";
+    const model = "gemini-2.5-flash-native-audio-preview-12-2025";
     const config: LiveConnectConfig = {
         responseModalities: [Modality.AUDIO],
         systemInstruction: systemPrompt,
@@ -202,19 +202,19 @@ export const connectToGemini = async ({
 
         console.log("Connected to Gemini successfully!", patientPhotos.length);
 
-        if (patientPhotos.length > 0) {
-            for (const photo of patientPhotos) {
-                geminiSession?.sendRealtimeInput({
-                    video: {
-                        mimeType: photo.mimeType,
-                        data: photo.data,
-                    },
-                });
-            }
+        // if (patientPhotos.length > 0) {
+        //     for (const photo of patientPhotos) {
+        //         geminiSession?.sendRealtimeInput({
+        //             video: {
+        //                 mimeType: photo.mimeType,
+        //                 data: photo.data,
+        //             },
+        //         });
+        //     }
 
-            // Let the live session ingest the visual frames before the opener.
-            await new Promise((resolve) => setTimeout(resolve, 150));
-        }
+        //     // Let the live session ingest the visual frames before the opener.
+        //     await new Promise((resolve) => setTimeout(resolve, 150));
+        // }
 
         // Send first message if available
         const inputTurns = [{
