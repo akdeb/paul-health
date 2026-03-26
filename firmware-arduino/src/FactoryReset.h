@@ -40,7 +40,7 @@ void setResetComplete() {
     http.end();
 }
 
-void quickAuthTokenReset() {
+void quickSessionContextReset() {
     preferences.begin("auth", false);
     preferences.putString("auth_token", "");
     preferences.putString("timezone", "");

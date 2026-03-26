@@ -138,7 +138,7 @@ static void onButtonDoubleClickCb(void *button_handle, void *usr_data)
     sleepRequested = true;
 }
 
-void getAuthTokenFromNVS()
+void loadSessionContextFromNVS()
 {
     preferences.begin("auth", false);
     authTokenGlobal = preferences.getString("auth_token", "");
@@ -230,12 +230,12 @@ void touchTask(void* parameter) {
 }
 
 void setupDeviceMetadata() {
-    // quickAuthTokenReset();
+    // quickSessionContextReset(); // doesn't reset wifi credentials
     // quickFactoryResetDevice();
 
     deviceState = IDLE;
 
-    getAuthTokenFromNVS();
+    loadSessionContextFromNVS();
     getOTAStatusFromNVS();
 
     Serial.println("Timezone: " + timezoneGlobal);

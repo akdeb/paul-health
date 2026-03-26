@@ -176,13 +176,13 @@ server.on("upgrade", async (req, socket, head) => {
         supabase = getSupabaseClient(authToken as string);
         user = await authenticateUser(supabase, authToken as string);
 
-        // allow any mac address for dev
-        const expectedMac = user.device?.mac_address;
-        if (!isDev && deviceMac && deviceMac !== expectedMac) {
-            socket.write("HTTP/1.1 401 Unauthorized\r\n\r\n");
-            socket.destroy();
-            return;
-        }
+        // // allow any mac address for dev
+        // const expectedMac = user.device?.mac_address;
+        // if (!isDev && deviceMac && deviceMac !== expectedMac) {
+        //     socket.write("HTTP/1.1 401 Unauthorized\r\n\r\n");
+        //     socket.destroy();
+        //     return;
+        // }
     } catch (_e: any) {
         socket.write("HTTP/1.1 401 Unauthorized\r\n\r\n");
         socket.destroy();

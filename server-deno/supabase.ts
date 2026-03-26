@@ -128,7 +128,7 @@ export const getChatHistory = async (
             .eq("user_id", userId)
             .eq("type", actionType)
             .order("created_at", { ascending: false })
-            .limit(20);
+            .limit(30);
 
         if (actionsError) {
             throw actionsError;
@@ -144,7 +144,7 @@ export const getChatHistory = async (
             .select("*")
             .in("action_id", actionIds)
             .order("created_at", { ascending: false })
-            .limit(20);
+            .limit(30);
 
         // If isDoctor is true, only fetch conversations from the last 2 hours
         if (isDoctor) {
@@ -164,160 +164,114 @@ export const getChatHistory = async (
     }
 };
 
-const UserPromptTemplate = (user: IUser) => `
-YOU ARE TALKING TO someone with a personality described as: ${user.personality?.title}.
-You are a dementia-friendly AI companion for the patient.
-
-Do not ask for personal information.
-Your physical form is in the form of a physical object or a toy.
-A person interacts with you by pressing a button, sends you instructions and you must respond in a concise conversational style.
-Do not keep re-introducing yourself unless the patient is clearly confused about who is speaking or explicitly asks.
-`;
-
-const formatList = (items: string[] | undefined, fallback = "None provided") => {
-    if (!items || items.length === 0) {
-        return fallback;
+const buildPersonalityContext = (personality?: IPersonality) => {
+    if (!personality) {
+        return null;
     }
 
-    return items.join("; ");
+    return {
+        personality_id: personality.personality_id,
+        key: personality.key,
+        voice: personality.voice,
+        provider: personality.provider,
+        voice_description: personality.voice_description,
+        title: personality.title,
+        subtitle: personality.subtitle,
+        short_description: personality.short_description,
+        character_prompt: personality.character_prompt,
+        voice_prompt: personality.voice_prompt,
+        accent: personality.accent,
+        tone: personality.tone,
+        creator_id: personality.creator_id,
+        pitch_factor: personality.pitch_factor,
+        first_message_prompt: personality.first_message_prompt,
+    };
 };
 
-const getPatientContextTemplate = (
-    patient: IPatient | undefined,
-) => {
+const buildPatientContext = (patient?: IPatient) => {
     if (!patient) {
-        return "PATIENT CONTEXT:\nNo patient record is attached to this user yet.";
+        return null;
     }
 
-    return `
-PATIENT CONTEXT:
-Name: ${patient.name}
-Age: ${patient.age}
-Gender: ${patient.gender}
-Address: ${patient.address || "Unknown"}
-About: ${patient.about || "No additional background provided"}
-Past jobs: ${formatList(patient.jobs)}
-Relations: ${formatList(patient.relations)}
-Stories: ${formatList(patient.stories)}
-Topics to avoid: ${formatList(patient.avoid)}
-`;
+    return {
+        patient_id: patient.patient_id,
+        name: patient.name,
+        age: patient.age,
+        about: patient.about,
+        gender: patient.gender,
+        address: patient.address,
+        jobs: patient.jobs,
+        relations: patient.relations,
+        stories: patient.stories,
+        avoid: patient.avoid,
+        caregiver_id: patient.caregiver_id,
+        timezone: patient.timezone,
+    };
 };
 
-const getPatientLocalTime = (timestamp: string, timeZone?: string) => {
-    const resolvedTimeZone = timeZone?.trim() || "UTC";
+const buildCaregiverContext = (user: IUser) => ({
+    user_id: user.user_id,
+    avatar_url: user.avatar_url,
+    is_premium: user.is_premium,
+    email: user.email,
+    name: user.name,
+    user_info: user.user_info,
+    personality_id: user.personality_id,
+    language_code: user.language_code,
+    language: user.language ?? null,
+    device_id: user.device_id,
+    device: user.device ?? null,
+    patient_id: user.patient_id,
+});
 
-    try {
-        return new Intl.DateTimeFormat("en-US", {
-            timeZone: resolvedTimeZone,
-            weekday: "long",
-            month: "long",
-            day: "numeric",
-            hour: "numeric",
-            minute: "2-digit",
-            hour12: true,
-            timeZoneName: "short",
-        }).format(new Date(timestamp));
-    } catch (_error) {
-        return new Intl.DateTimeFormat("en-US", {
-            timeZone: "UTC",
-            weekday: "long",
-            month: "long",
-            day: "numeric",
-            hour: "numeric",
-            minute: "2-digit",
-            hour12: true,
-            timeZoneName: "short",
-        }).format(new Date(timestamp));
-    }
-};
-
-const DementiaCarePromptTemplate = `
-DEMENTIA-SAFE CONVERSATION INSTRUCTIONS:
-- Speak gently, warmly, and clearly.
-- Use short sentences and one idea at a time.
-- Start by stating the current local time naturally, then continue the conversation.
-- After stating the time, move into engaging conversation grounded in the patient's life, interests, relations, jobs, stories, and familiar topics.
-- Prefer engaging companionship over generic encouragement, therapy language, or "how can I help?" phrasing.
-- Offer reassurance before correction.
-- Do not argue, confront, or quiz the patient on facts they may not remember.
-- If the patient is confused, redirect softly toward familiar people, routines, stories, or calming topics.
-- Respect the listed topics to avoid.
-- Encourage dignity, calm, and emotional safety in every response.
-- Avoid repeatedly introducing yourself at the start of every turn.
-- Avoid sounding like customer support, coaching, or a wellbeing app.
-- Make the patient feel accompanied, interested, and included.
-`;
-
-const getCommonPromptTemplate = (
-    chatHistory: string,
+const buildPromptContextPayload = (
     payload: IPayload,
-    timestamp: string,
-) => {
-    const patientLocalTime = getPatientLocalTime(
-        timestamp,
-        payload.user.patient?.timezone,
-    );
+    chatHistory: string,
+) => ({
+    personality: buildPersonalityContext(payload.user.personality),
+    patient: buildPatientContext(payload.user.patient),
+    caregiver: buildCaregiverContext(payload.user),
+    device_chat_history: chatHistory,
+});
 
-    return `
-Your Voice Description: ${[
-    payload.user.personality?.voice_prompt?.trim() ?? "",
-    payload.user.personality?.accent ? `Accent: ${payload.user.personality.accent}` : "",
-    payload.user.personality?.tone?.length ? `Tone: ${payload.user.personality.tone.join(", ")}` : "",
-].filter(Boolean).join("\n")}
+const buildVoiceContext = (payload: IPayload) => ({
+    voice_prompt: payload.user.personality?.voice_prompt ?? "",
+    voice_description: payload.user.personality?.voice_description ?? "",
+    voice: payload.user.personality?.voice ?? "",
+    provider: payload.user.personality?.provider ?? "",
+    accent: payload.user.personality?.accent ?? "",
+    tone: payload.user.personality?.tone ?? [],
+    pitch_factor: payload.user.personality?.pitch_factor ?? 1,
+});
 
-Your Character Description: ${payload.user.personality?.character_prompt}
-
-${getPatientContextTemplate(payload.user.patient)}
-
-The default language is: ${payload.user.language.name} but you must switch to any other language if the user asks for it.
-
-The current local time for the patient is: ${patientLocalTime}
-
-${DementiaCarePromptTemplate}
-
-This is the chat history.
-${chatHistory}
-`;
+const formatContextBlock = (title: string, value: unknown) => {
+    return `${title}\n${JSON.stringify(value, null, 2)}`;
 };
 
 export const createFirstMessage = (
     payload: IPayload,
 ): string => {
-    const { timestamp, user } = payload;
-    const patientLocalTime = getPatientLocalTime(
-        timestamp,
-        user.patient?.timezone,
-    );
-
-    const firstMessagePrompt = user.personality?.first_message_prompt
-        ? `Start by gently telling the patient the current local time, which is ${patientLocalTime}. After that, continue into an engaging conversation by drawing on familiar interests, stories, people, or past jobs from the patient's context. Do not re-introduce yourself unless needed. Then follow these opening instructions from the user: ${user.personality?.first_message_prompt}`
-        : `Start by gently telling the patient the current local time, which is ${patientLocalTime}. After that, continue into an engaging conversation by drawing on familiar interests, stories, people, or past jobs from the patient's context. Do not re-introduce yourself unless needed.`;
-
-    return firstMessagePrompt;
+    return payload.user.personality?.first_message_prompt ?? "";
 };
 
 export const createSystemPrompt = (
     chatHistory: IConversation[],
     payload: IPayload,
 ): string => {
-    const { user, timestamp } = payload;
     const chatHistoryString = composeChatHistory(chatHistory);
-    console.log("chatHistoryString", chatHistoryString);
-    const commonPrompt = getCommonPromptTemplate(
-        chatHistoryString,
+    const contextPayload = buildPromptContextPayload(
         payload,
-        timestamp,
+        chatHistoryString,
     );
+    const voiceContext = buildVoiceContext(payload);
 
-    let systemPrompt: string;
-    switch (user.user_info.user_type) {
-        case "user":
-            systemPrompt = UserPromptTemplate(user);
-            break;
-        default:
-            throw new Error("Invalid user type");
-    }
-    return commonPrompt + systemPrompt;
+    return [
+        formatContextBlock("YOU ARE (PERSONALITY CONTEXT):", contextPayload.personality),
+        formatContextBlock("YOUR VOICE (VOICE DETAILS):", voiceContext),
+        formatContextBlock("YOU ARE TALKING TO (PATIENT DETAILS):", contextPayload.patient),
+        formatContextBlock("THE PATIENT'S CAREGIVER (USER DETAILS):", contextPayload.caregiver),
+        `THIS IS THE DEVICE CHAT HISTORY (LAST 30 MESSAGES):\n${contextPayload.device_chat_history || "No device chat history yet."}`,
+    ].join("\n\n");
 };
 
 export const addConversation = async (
