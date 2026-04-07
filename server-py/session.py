@@ -382,6 +382,20 @@ def extract_auth_token(websocket: WebSocket) -> str:
     return ""
 
 
+def normalize_optional_uuid_header(value: str | None) -> str | None:
+    if value is None:
+        return None
+
+    normalized = value.strip()
+    if not normalized:
+        return None
+
+    if normalized.lower() in {"null", "none", "undefined"}:
+        return None
+
+    return normalized
+
+
 @dataclass
 class SessionState:
     transport_kind: Literal["browser", "esp32"]
@@ -436,8 +450,7 @@ def build_session_state(
     user = authenticate_user(supabase, auth_token)
     action_type: ActionTransportType = "device_chat" if transport_kind == "esp32" else "web_chat"
 
-    raw_job_id = websocket.headers.get("x-job-id", "").strip()
-    job_id = raw_job_id or None
+    job_id = normalize_optional_uuid_header(websocket.headers.get("x-job-id"))
 
     action = create_action(
         supabase,
