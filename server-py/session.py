@@ -187,6 +187,23 @@ def get_patient_photos(
     return photos
 
 
+def get_device_info(supabase: Client, user_id: str) -> dict[str, Any] | None:
+    try:
+        response = (
+            supabase.table("devices")
+            .select("*")
+            .eq("user_id", user_id)
+            .limit(1)
+            .execute()
+        )
+        if not response.data:
+            return None
+        return response.data[0]
+    except Exception as exc:
+        logger.warning("Failed to fetch device info: {}", exc)
+        return None
+
+
 def compose_chat_history(conversations: list[IConversation]) -> str:
     return "\n".join(
         f"{item.get('role', 'unknown')} [{datetime.fromisoformat(str(item['created_at']).replace('Z', '+00:00')).isoformat()}]: {item.get('content', '')}"

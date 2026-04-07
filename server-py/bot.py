@@ -14,7 +14,7 @@ from loguru import logger
 
 from classic_route import build_classic_route
 from gem_live_route import build_gem_live_route
-from session import SessionState, add_conversation
+from session import SessionState, add_conversation, get_device_info
 
 logger.info("Loading Silero VAD model...")
 
@@ -90,8 +90,9 @@ class RealtimeInputControlProcessor(FrameProcessor):
 class RealtimeOutputControlProcessor(FrameProcessor):
     """Translate pipeline state changes into the old websocket control protocol."""
 
-    def __init__(self):
+    def __init__(self, session: SessionState):
         super().__init__()
+        self._session = session
         self._response_started = False
 
     async def process_frame(self, frame: Frame, direction: FrameDirection):
@@ -107,8 +108,18 @@ class RealtimeOutputControlProcessor(FrameProcessor):
                 self._response_started = True
                 logger.debug("Sending RESPONSE.CREATED before first audio packet")
                 await self.push_frame(STTMuteFrame(mute=True), direction)
+                latest_device = get_device_info(
+                    self._session.supabase,
+                    self._session.user["user_id"],
+                )
+                response_created_message = {
+                    "type": "server",
+                    "msg": "RESPONSE.CREATED",
+                }
+                if latest_device and latest_device.get("volume") is not None:
+                    response_created_message["volume_control"] = latest_device["volume"]
                 await self.push_frame(
-                    OutputTransportMessageFrame(message={"type": "server", "msg": "RESPONSE.CREATED"}),
+                    OutputTransportMessageFrame(message=response_created_message),
                     direction,
                 )
             elif isinstance(frame, (TTSStoppedFrame, BotStoppedSpeakingFrame)):
@@ -212,7 +223,7 @@ async def run_bot_session(
         processors.append(assistant_persistence)
 
     if transport_kind in {"esp32", "browser"}:
-        processors.append(RealtimeOutputControlProcessor())
+        processors.append(RealtimeOutputControlProcessor(session))
     processors.append(transport.output())
     processors.append(assistant_aggregator)
 
