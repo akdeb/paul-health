@@ -230,7 +230,7 @@ void touchTask(void* parameter) {
 }
 
 void setupDeviceMetadata() {
-    // quickSessionContextReset(); // doesn't reset wifi credentials
+    quickSessionContextReset(); // doesn't reset wifi credentials
     // quickFactoryResetDevice();
 
     deviceState = IDLE;

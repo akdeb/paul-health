@@ -12,8 +12,13 @@ from fastapi.responses import HTMLResponse, RedirectResponse
 from loguru import logger
 from pipecat.transports.websocket.fastapi import FastAPIWebsocketParams
 
-from bot import create_esp32_auth_message, run_bot_session
-from esp32_transport import BrowserWebsocketTransport, Esp32WebsocketTransport, RawPCMFrameSerializer
+from bot import run_bot_session
+from esp32_transport import (
+    BrowserWebsocketTransport,
+    Esp32WebsocketTransport,
+    RawPCMFrameSerializer,
+)
+from paul_business import build_session_state
 
 HOST = os.getenv("HOST", "0.0.0.0")
 PORT = int(os.getenv("PORT", "7860"))
@@ -248,23 +253,39 @@ def create_app() -> FastAPI:
 
     @app.websocket("/ws/browser")
     async def browser_websocket(websocket: WebSocket):
+        try:
+            session = build_session_state(websocket, transport_kind="browser")
+        except Exception as exc:
+            logger.warning("Browser websocket rejected: {}", exc)
+            await websocket.close(code=4401, reason="Unauthorized")
+            return
+
         await websocket.accept()
-        logger.info("Browser websocket connected")
+        logger.info("Browser websocket connected for user={}", session.user.get("user_id"))
+        await websocket.send_text(json.dumps(session.create_auth_message()))
         transport = create_browser_transport(websocket)
-        await run_bot_session(transport, "browser", False)
+        await run_bot_session(transport, "browser", session, False)
 
     @app.websocket("/ws/esp32")
     async def esp32_websocket(websocket: WebSocket):
+        try:
+            session = build_session_state(websocket, transport_kind="esp32")
+        except Exception as exc:
+            logger.warning("ESP32 websocket rejected: {}", exc)
+            await websocket.close(code=4401, reason="Unauthorized")
+            return
+
         await websocket.accept()
         logger.info(
-            "ESP32 websocket connected: mac={} rssi={} auth={}",
+            "ESP32 websocket connected: user={} mac={} rssi={} auth=yes job_id={}",
+            session.user.get("user_id"),
             websocket.headers.get("x-device-mac", "unknown"),
             websocket.headers.get("x-wifi-rssi", "unknown"),
-            "yes" if websocket.headers.get("authorization") else "no",
+            session.job_id,
         )
-        await websocket.send_text(json.dumps(create_esp32_auth_message()))
+        await websocket.send_text(json.dumps(session.create_auth_message()))
         transport = create_esp32_transport(websocket)
-        await run_bot_session(transport, "esp32", False)
+        await run_bot_session(transport, "esp32", session, False)
 
     return app
 

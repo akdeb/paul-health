@@ -9,11 +9,13 @@
 import os
 from typing import Literal
 
-from classic_route import build_classic_route
 from dotenv import load_dotenv
-from gem_live_route import build_gem_live_route
 from grok_route import build_grok_route
 from loguru import logger
+
+from classic_route import build_classic_route
+from gem_live_route import build_gem_live_route
+from paul_business import SessionState, add_conversation
 
 logger.info("Loading Silero VAD model...")
 
@@ -28,11 +30,14 @@ from pipecat.frames.frames import (
     InputTransportMessageFrame,
     InterruptionFrame,
     LLMContextFrame,
+    LLMFullResponseEndFrame,
     LLMRunFrame,
     OutputAudioRawFrame,
     OutputTransportMessageFrame,
     STTMuteFrame,
+    TranscriptionFrame,
     TTSStoppedFrame,
+    TTSTextFrame,
     UserStoppedSpeakingFrame,
     VADUserStoppedSpeakingFrame,
 )
@@ -138,9 +143,60 @@ def create_esp32_auth_message() -> dict:
     }
 
 
+class ConversationPersistenceProcessor(FrameProcessor):
+    """Persist finalized user and assistant transcript turns to Supabase."""
+
+    def __init__(
+        self,
+        session: SessionState,
+        *,
+        persist_user: bool = False,
+        persist_assistant: bool = False,
+    ):
+        super().__init__()
+        self._session = session
+        self._persist_user = persist_user
+        self._persist_assistant = persist_assistant
+        self._assistant_chunks: list[str] = []
+
+    async def process_frame(self, frame: Frame, direction: FrameDirection):
+        await super().process_frame(frame, direction)
+
+        if self._persist_user and isinstance(frame, TranscriptionFrame) and frame.text.strip():
+            if frame.finalized or direction is FrameDirection.UPSTREAM:
+                try:
+                    add_conversation(
+                        self._session.supabase,
+                        speaker="user",
+                        content=frame.text,
+                        action_id=self._session.action_id,
+                    )
+                except Exception as exc:
+                    logger.warning("Failed to persist user transcript: {}", exc)
+        elif self._persist_assistant and isinstance(frame, TTSTextFrame) and frame.text.strip():
+            self._assistant_chunks.append(frame.text)
+        elif self._persist_assistant and isinstance(frame, (TTSStoppedFrame, LLMFullResponseEndFrame)):
+            if self._assistant_chunks:
+                assistant_text = "".join(self._assistant_chunks).strip()
+                self._assistant_chunks.clear()
+                if assistant_text:
+                    try:
+                        add_conversation(
+                            self._session.supabase,
+                            speaker="assistant",
+                            content=assistant_text,
+                            action_id=self._session.action_id,
+                        )
+                    except Exception as exc:
+                        logger.warning("Failed to persist assistant transcript: {}", exc)
+
+        await self.push_frame(frame, direction)
+
+
 async def run_bot_session(
     transport: BaseTransport,
     transport_kind: Literal["browser", "esp32"],
+    session: SessionState,
     handle_sigint: bool = False,
 ):
     voice_route = CURRENT_VOICE_ROUTE
@@ -148,14 +204,25 @@ async def run_bot_session(
 
     context = LLMContext()
     input_processor = RealtimeInputControlProcessor(voice_route)
+    user_persistence = ConversationPersistenceProcessor(session, persist_user=True)
+    assistant_persistence = ConversationPersistenceProcessor(session, persist_assistant=True)
     if voice_route == "gem_live":
-        route_processors, assistant_aggregator = build_gem_live_route(input_processor, context)
+        route_processors, assistant_aggregator = build_gem_live_route(
+            input_processor,
+            context,
+            session,
+            pre_llm_processor=user_persistence,
+            post_llm_processor=assistant_persistence,
+        )
     elif voice_route == "grok":
         route_processors, assistant_aggregator = build_grok_route(input_processor, context)
     else:
         route_processors, assistant_aggregator = build_classic_route(input_processor, context)
 
     processors = [transport.input(), *route_processors]
+    if voice_route != "gem_live":
+        processors.append(user_persistence)
+        processors.append(assistant_persistence)
 
     if transport_kind in {"esp32", "browser"}:
         processors.append(RealtimeOutputControlProcessor())
@@ -178,22 +245,19 @@ async def run_bot_session(
     async def on_client_connected(transport, client):
         logger.info(f"{transport_kind} client connected")
         if voice_route in {"gem_live", "grok"}:
-            context.add_message(
-                {
-                    "role": "user",
-                    "content": "Say hello and briefly introduce yourself.",
-                }
-            )
-            await task.queue_frames(
-                [
-                    LLMContextFrame(context=context)
-                ]
-            )
+            if session.first_message.strip():
+                context.add_message(
+                    {
+                        "role": "user",
+                        "content": session.first_message,
+                    }
+                )
+                await task.queue_frames([LLMContextFrame(context=context)])
         else:
             context.add_message(
                 {
                     "role": "developer",
-                    "content": "Say hello and briefly introduce yourself.",
+                    "content": session.first_message or "Say hello and briefly introduce yourself.",
                 }
             )
             await task.queue_frames([LLMRunFrame()])
@@ -202,6 +266,10 @@ async def run_bot_session(
     async def on_client_disconnected(transport, client):
         logger.info(f"{transport_kind} client disconnected")
         await task.cancel()
+        await session.cleanup()
 
     runner = PipelineRunner(handle_sigint=handle_sigint)
-    await runner.run(task)
+    try:
+        await runner.run(task)
+    finally:
+        await session.cleanup()
