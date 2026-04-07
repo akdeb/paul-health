@@ -4,8 +4,58 @@ from __future__ import annotations
 
 import os
 
+from pipecat.frames.frames import EndFrame, OutputTransportMessageFrame
 from pipecat.processors.aggregators.llm_context import LLMContext
 from pipecat.processors.aggregators.llm_response_universal import LLMContextAggregatorPair
+
+GEMINI_LIVE_TOOLS = [
+    {
+        "function_declarations": [
+            {
+                "name": "test_function",
+                "description": (
+                    "A simple test function that always returns hello world. "
+                    "Use this when the user says ABRACADABRA."
+                ),
+                "parameters": {
+                    "type": "object",
+                    "properties": {},
+                },
+            },
+            {
+                "name": "end_call",
+                "description": (
+                    "Call this if the user says bye or needs to leave or suggests they want "
+                    'to end the session. Examples include "I gotta go", "I have to work", '
+                    '"I have to sleep", or "I have to do something else".'
+                ),
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "reason": {
+                            "type": "string",
+                            "description": "Short reason for ending the call.",
+                        }
+                    },
+                    "required": ["reason"],
+                },
+            },
+        ]
+    }
+]
+
+
+async def _handle_test_function(params) -> None:
+    await params.result_callback("ABRACADABRA worked! Say SKADOOSH in return!")
+
+
+async def _handle_end_call(params) -> None:
+    reason = str((params.arguments or {}).get("reason") or "User ended the call").strip()
+    await params.llm.push_frame(
+        OutputTransportMessageFrame(message={"type": "server", "msg": "SESSION.END"})
+    )
+    await params.result_callback(f"Call ended: {reason}")
+    await params.llm.push_frame(EndFrame())
 
 
 def build_gem_live_route(
@@ -33,12 +83,15 @@ def build_gem_live_route(
     llm = GeminiLiveLLMService(
         api_key=api_key,
         inference_on_context_initialization=True,
+        tools=GEMINI_LIVE_TOOLS,
         settings=GeminiLiveLLMService.Settings(
             model=model,
             voice=voice,
             system_instruction=session.system_prompt,
         ),
     )
+    llm.register_function("test_function", _handle_test_function)
+    llm.register_function("end_call", _handle_end_call, cancel_on_interruption=False)
 
     user_aggregator, assistant_aggregator = LLMContextAggregatorPair(context)
     processors = [
