@@ -18,7 +18,12 @@ from loguru import logger
 from supabase import Client, create_client
 from supabase.client import ClientOptions
 
-ActionTransportType = Literal["web_chat", "device_chat"]
+from app_types import (
+    ActionTransportType,
+    IConversation,
+    IPatientPhotoContext,
+    IUser,
+)
 
 
 def _base64url_decode(value: str) -> bytes:
@@ -65,14 +70,14 @@ def get_supabase_client(user_jwt: str) -> Client:
     )
 
 
-def get_user_by_email(supabase: Client, email: str) -> dict[str, Any]:
+def get_user_by_email(supabase: Client, email: str) -> IUser:
     response = (
         supabase.table("users")
         .select(
             "*,"
             "language:languages(name),"
             "personality:personalities!users_personality_id_fkey(*),"
-            "device:device_id(is_reset,is_ota,volume,mac_address),"
+            "device:devices!users_device_id_fkey(*),"
             "patient:patients!users_patient_id_fkey(*)"
         )
         .eq("email", email)
@@ -84,7 +89,7 @@ def get_user_by_email(supabase: Client, email: str) -> dict[str, Any]:
     return response.data[0]
 
 
-def authenticate_user(supabase: Client, auth_token: str) -> dict[str, Any]:
+def authenticate_user(supabase: Client, auth_token: str) -> IUser:
     jwt_secret = os.getenv("JWT_SECRET_KEY")
     if not jwt_secret:
         raise RuntimeError("JWT_SECRET_KEY not configured")
@@ -100,7 +105,7 @@ def get_chat_history(
     supabase: Client,
     user_id: str,
     action_type: ActionTransportType,
-) -> list[dict[str, Any]]:
+) -> list[IConversation]:
     try:
         actions_response = (
             supabase.table("actions")
@@ -136,7 +141,7 @@ def get_chat_history(
 def get_patient_photos(
     supabase: Client,
     patient_id: str | None,
-) -> list[dict[str, str]]:
+) -> list[IPatientPhotoContext]:
     if not patient_id:
         return []
 
@@ -160,7 +165,7 @@ def get_patient_photos(
         if photo.get("url")
     ][:4]
 
-    photos: list[dict[str, str]] = []
+    photos: list[IPatientPhotoContext] = []
     for url in photo_urls:
         try:
             with urlopen(url, timeout=20) as response:
@@ -182,7 +187,7 @@ def get_patient_photos(
     return photos
 
 
-def compose_chat_history(conversations: list[dict[str, Any]]) -> str:
+def compose_chat_history(conversations: list[IConversation]) -> str:
     return "\n".join(
         f"{item.get('role', 'unknown')} [{datetime.fromisoformat(str(item['created_at']).replace('Z', '+00:00')).isoformat()}]: {item.get('content', '')}"
         for item in conversations
@@ -270,8 +275,8 @@ def _format_context_block(title: str, value: Any) -> str:
 
 
 def create_system_prompt(
-    user: dict[str, Any],
-    chat_history: list[dict[str, Any]],
+    user: IUser,
+    chat_history: list[IConversation],
     action_type: ActionTransportType,
 ) -> str:
     chat_history_string = compose_chat_history(chat_history)
@@ -400,14 +405,14 @@ def normalize_optional_uuid_header(value: str | None) -> str | None:
 class SessionState:
     transport_kind: Literal["browser", "esp32"]
     action_type: ActionTransportType
-    user: dict[str, Any]
+    user: IUser
     supabase: Client
     auth_token: str
     action_id: str
     action_started_at: float
     system_prompt: str
     first_message: str
-    patient_photos: list[dict[str, str]] = field(default_factory=list)
+    patient_photos: list[IPatientPhotoContext] = field(default_factory=list)
     job_id: str | None = None
     cleaned_up: bool = False
 
