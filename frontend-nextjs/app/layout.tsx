@@ -113,14 +113,12 @@ const defaultUrl = process.env.VERCEL_URL
 export const metadata: Metadata = {
     metadataBase: new URL(defaultUrl),
     title: {
-        default:
-            "Elato AI: The Compact Device to Bring AI Characters to Life",
-        template:
-            "%s | Elato AI - The Compact Device to Bring AI Characters to Life",
+        default: "Paul",
+        template: "%s | Paul",
     },
-    applicationName: "Elato AI",
+    applicationName: "Paul",
     description:
-        "Elato is an AI-enabled device that brings objects to life through conversational AI. More than a device, it's your gateway to a world where AI brings magic to the ordinary.",
+        "Paul is a voice companion for people living with dementia, with caregiver tools for personalization, routines, and conversation support.",
     authors: [
         {
             name: "Akashdeep Deb",
@@ -130,74 +128,49 @@ export const metadata: Metadata = {
     keywords: [
         "AI toy",
         "AI companion",
-        "AI device",
-        "interactive learning",
-        "empathetic companion",
-        "voice assistant",
-        "emotional growth",
-        "Elato AI",
+        "dementia care",
+        "caregiver tools",
+        "voice companion",
+        "memory support",
+        "Paul",
         "conversational AI",
-        "google home",
-        "amazon echo",
-        "smart speaker",
-        "AI speaker",
-        "emotional support",
-        "AI for adults",
-        "AI assistant",
-        "smart AI device",
+        "care plan",
+        "patient support",
+        "elder care",
     ],
     openGraph: {
-        title: "Elato AI: The Compact Device to Bring AI Characters to Life",
+        title: "Paul",
         description:
-            "Elato brings objects to life through engaging, conversational AI experiences. More than a device, it's your gateway to a world where AI brings magic to the ordinary.",
-        siteName: "Elato AI",
+            "Paul is a voice companion for people living with dementia, designed to support familiar conversation and help caregivers personalize care.",
+        siteName: "Paul",
         locale: "en-US",
         type: "website",
-        images: [
-            {
-                url: "https://elatoai.com/images/orange.png",
-                width: 1200,
-                height: 630,
-                alt: "Elato AI conversational device - Front View",
-            },
-        ],
+        images: [],
     },
     robots: {
         index: true,
         follow: true,
     },
     generator: "Next.js",
-    creator: "Elato Team",
-    publisher: "Elato AI Ltd.",
-    alternates: {
-        canonical: "https://elatoai.com",
-        languages: {
-            "en-US": "https://elatoai.com",
-            "zh-CN": "https://elatoai.com",
-        },
-    },
-    icons: {
-        icon: "https://elatoai.com/favicon.ico",
-        apple: "https://elatoai.com/favicon.ico",
-    },
+    creator: "Paul",
+    publisher: "Paul",
     twitter: {
         card: "summary_large_image",
-        title: "Elato - An AI-powered device that brings objects to life through engaging, conversational experiences",
+        title: "Paul",
         description:
-            "More than a device, Elato is your gateway to a world where AI brings magic to the ordinary through engaging learning and interactive experiences.",
-        images: ["https://elatoai.com/images/orange.png"],
+            "Paul is a voice companion for people living with dementia, with caregiver tools for routines, personalization, and conversation support.",
+        images: [],
     },
-    assets: "https://elatoai.com/images",
     formatDetection: {
         telephone: false,
     },
     appleWebApp: {
         capable: true,
-        title: "Elato AI",
+        title: "Paul",
         statusBarStyle: "black-translucent",
     },
-    category: "AI device",
-    classification: "Interactive, conversational AI Devices",
+    category: "Healthcare technology",
+    classification: "Dementia support and caregiver software",
 };
 
 export const viewport: Viewport = {
@@ -209,42 +182,15 @@ export const viewport: Viewport = {
 const jsonLd: WithContext<Product> = {
     "@context": "https://schema.org",
     "@type": "Product",
-    name: "Elato AI",
+    name: "Paul",
     description:
-        "Elato is an AI-enabled device that brings objects to life through conversational AI. More than a device, it's your gateway to a world where AI brings magic to the ordinary.",
+        "Paul is a voice companion for people living with dementia, designed to support familiar conversation and help caregivers personalize care.",
     brand: {
         "@type": "Brand",
-        name: "Elato AI",
+        name: "Paul",
     },
     offers: {
-        "@type": "Offer",
-        url: "https://elatoai.com",
-        priceCurrency: "USD",
-        price: "57.99",
-        priceValidUntil: "2024-12-31", // set a realistic date in the future
-        availability: "https://schema.org/InStock",
-        seller: {
-            "@type": "Organization",
-            name: "Elato AI Ltd.",
-        },
-        hasMerchantReturnPolicy: {
-            "@type": "MerchantReturnPolicy",
-            returnPolicyCategory:
-                "https://schema.org/MerchantReturnUnspecified",
-            merchantReturnDays: 30,
-        },
-        shippingDetails: {
-            "@type": "OfferShippingDetails",
-            shippingDestination: {
-                "@type": "DefinedRegion",
-                name: "Worldwide", // Reflects availability in all countries
-            },
-            shippingRate: {
-                "@type": "MonetaryAmount",
-                value: "0.00",
-                currency: "USD", // Free shipping
-            },
-        },
+        "@type": "Offer"
     },
     aggregateRating: {
         "@type": "AggregateRating",
