@@ -18,7 +18,7 @@ from esp32_transport import (
     Esp32WebsocketTransport,
     RawPCMFrameSerializer,
 )
-from paul_business import build_session_state
+from session import build_session_state
 
 HOST = os.getenv("HOST", "0.0.0.0")
 PORT = int(os.getenv("PORT", "7860"))

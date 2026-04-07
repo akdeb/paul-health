@@ -1,4 +1,4 @@
-"""Paul business logic ported from the Deno voice server."""
+"""Session setup, auth, prompts, and Supabase access for the Paul voice server."""
 
 from __future__ import annotations
 
@@ -58,9 +58,7 @@ def get_supabase_client(user_jwt: str) -> Client:
         supabase_url,
         supabase_key,
         options=ClientOptions(
-            headers={
-                "Authorization": f"Bearer {user_jwt}",
-            },
+            headers={"Authorization": f"Bearer {user_jwt}"},
             auto_refresh_token=False,
             persist_session=False,
         ),
@@ -450,7 +448,10 @@ def build_session_state(
         job_id=job_id,
     )
     patient = user.get("patient") or {}
-    patient_photos = get_patient_photos(supabase, patient.get("patient_id") or user.get("patient_id"))
+    patient_photos = get_patient_photos(
+        supabase,
+        patient.get("patient_id") or user.get("patient_id"),
+    )
     chat_history = get_chat_history(supabase, user["user_id"], action_type)
 
     return SessionState(
@@ -462,9 +463,6 @@ def build_session_state(
         action_id=action["action_id"],
         action_started_at=time.time(),
         system_prompt=create_system_prompt(user, chat_history, action_type),
-        # The live service ingests images separately if we decide to enable that
-        # path again; for now we still fetch them so the Python server matches
-        # the Deno-side session payload shape.
         first_message=create_first_message(user),
         patient_photos=patient_photos,
         job_id=job_id,

@@ -15,7 +15,7 @@ from loguru import logger
 
 from classic_route import build_classic_route
 from gem_live_route import build_gem_live_route
-from paul_business import SessionState, add_conversation
+from session import SessionState, add_conversation
 
 logger.info("Loading Silero VAD model...")
 
@@ -131,16 +131,6 @@ class RealtimeOutputControlProcessor(FrameProcessor):
                 )
 
         await self.push_frame(frame, direction)
-
-
-def create_esp32_auth_message() -> dict:
-    return {
-        "type": "auth",
-        "volume_control": int(os.getenv("ESP32_DEFAULT_VOLUME", "100")),
-        "pitch_factor": float(os.getenv("ESP32_DEFAULT_PITCH_FACTOR", "1.0")),
-        "is_ota": False,
-        "is_reset": False,
-    }
 
 
 class ConversationPersistenceProcessor(FrameProcessor):
