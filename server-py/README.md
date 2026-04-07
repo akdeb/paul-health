@@ -71,6 +71,5 @@ This workspace now exposes two access paths to the same Pipecat bot logic:
   speech-to-speech.
 - Route builders are split into [classic_route.py](/Users/akashdeepdeb/Desktop/Projects/pipecat-test/classic_route.py)
   and [gem_live_route.py](/Users/akashdeepdeb/Desktop/Projects/pipecat-test/gem_live_route.py),
-  plus [grok_route.py](/Users/akashdeepdeb/Desktop/Projects/pipecat-test/grok_route.py).
 - The included [Dockerfile](/Users/akashdeepdeb/Desktop/Projects/pipecat-test/Dockerfile) is
   set up for generic container hosting of this FastAPI app.

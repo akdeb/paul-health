@@ -10,7 +10,6 @@ import os
 from typing import Literal
 
 from dotenv import load_dotenv
-from grok_route import build_grok_route
 from loguru import logger
 
 from classic_route import build_classic_route
@@ -204,8 +203,6 @@ async def run_bot_session(
             pre_llm_processor=user_persistence,
             post_llm_processor=assistant_persistence,
         )
-    elif voice_route == "grok":
-        route_processors, assistant_aggregator = build_grok_route(input_processor, context)
     else:
         route_processors, assistant_aggregator = build_classic_route(input_processor, context)
 
