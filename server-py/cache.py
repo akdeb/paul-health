@@ -10,7 +10,7 @@ from typing import Any
 import redis
 from loguru import logger
 
-from app_types import IConversation, IPatientPhotoContext, IUser
+from app_types import IConversation, IUser
 
 USER_CONTEXT_TTL_SECONDS = int(os.getenv("USER_CONTEXT_TTL_SECONDS", "900"))
 CHAT_HISTORY_TTL_SECONDS = int(os.getenv("CHAT_HISTORY_TTL_SECONDS", "3600"))
@@ -100,13 +100,11 @@ def set_cached_user_context(
     email: str,
     *,
     user: IUser,
-    patient_photos: list[IPatientPhotoContext],
 ) -> None:
     _json_set(
         _context_key(email),
         {
             "user": user,
-            "patient_photos": patient_photos,
         },
         USER_CONTEXT_TTL_SECONDS,
     )

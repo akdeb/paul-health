@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import base64
 import hashlib
 import hmac
 import json
@@ -11,7 +10,6 @@ import time
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Literal
-from urllib.request import urlopen
 
 from fastapi import WebSocket
 from loguru import logger
@@ -161,49 +159,10 @@ def get_patient_photos(
     supabase: Client,
     patient_id: str | None,
 ) -> list[IPatientPhotoContext]:
-    if not patient_id:
-        return []
-
-    try:
-        response = (
-            supabase.table("photos")
-            .select("url")
-            .eq("patient_id", patient_id)
-            .eq("type", "album")
-            .order("created_at", desc=True)
-            .execute()
-        )
-        data = response.data or []
-    except Exception as exc:
-        logger.warning("Failed to fetch patient photos: {}", exc)
-        return []
-
-    photo_urls = [
-        photo.get("url", "").strip()
-        for photo in data
-        if photo.get("url")
-    ][:4]
-
-    photos: list[IPatientPhotoContext] = []
-    for url in photo_urls:
-        try:
-            with urlopen(url, timeout=20) as response:
-                mime_type = response.headers.get_content_type()
-                if not mime_type.startswith("image/"):
-                    continue
-                content = response.read()
-                if not content or len(content) > 4 * 1024 * 1024:
-                    continue
-                photos.append(
-                    {
-                        "mimeType": mime_type,
-                        "data": base64.b64encode(content).decode("utf-8"),
-                    }
-                )
-        except Exception as exc:
-            logger.warning("Failed to fetch patient photo asset {}: {}", url, exc)
-
-    return photos
+    # Keep image bytes off the websocket/session bootstrap path.
+    # We can add a dedicated lazy image-loading path when the live route
+    # actually consumes patient photos again.
+    return []
 
 
 def get_device_info(supabase: Client, user_id: str) -> dict[str, Any] | None:
@@ -509,15 +468,11 @@ def build_session_state(
     cached_user_context = get_cached_user_context(email)
     if cached_user_context:
         user = cached_user_context["user"]
-        patient_photos = cached_user_context.get("patient_photos") or []
+        patient_photos = []
     else:
         user = authenticate_user(supabase, auth_token)
-        patient = user.get("patient") or {}
-        patient_photos = get_patient_photos(
-            supabase,
-            patient.get("patient_id") or user.get("patient_id"),
-        )
-        set_cached_user_context(email, user=user, patient_photos=patient_photos)
+        patient_photos = []
+        set_cached_user_context(email, user=user)
 
     action_type: ActionTransportType = "device_chat" if transport_kind == "esp32" else "web_chat"
     job_id = normalize_optional_uuid_header(websocket.headers.get("x-job-id"))
