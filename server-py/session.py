@@ -24,6 +24,13 @@ from app_types import (
     IPatientPhotoContext,
     IUser,
 )
+from cache import (
+    append_cached_chat_history,
+    get_cached_chat_history,
+    get_cached_user_context,
+    set_cached_chat_history,
+    set_cached_user_context,
+)
 
 
 def _base64url_decode(value: str) -> bytes:
@@ -99,6 +106,18 @@ def authenticate_user(supabase: Client, auth_token: str) -> IUser:
     if not email:
         raise RuntimeError("JWT payload missing email")
     return get_user_by_email(supabase, email)
+
+
+def get_email_from_auth_token(auth_token: str) -> str:
+    jwt_secret = os.getenv("JWT_SECRET_KEY")
+    if not jwt_secret:
+        raise RuntimeError("JWT_SECRET_KEY not configured")
+
+    payload = verify_hs256_jwt(auth_token, jwt_secret)
+    email = payload.get("email")
+    if not email:
+        raise RuntimeError("JWT payload missing email")
+    return str(email)
 
 
 def get_chat_history(
@@ -358,6 +377,7 @@ def add_conversation(
     speaker: Literal["user", "assistant"],
     content: str,
     action_id: str,
+    user_id: str | None = None,
 ) -> None:
     text = content.strip()
     if not text:
@@ -375,6 +395,22 @@ def add_conversation(
         )
         .execute()
     )
+
+    if user_id:
+        append_cached_chat_history(
+            user_id,
+            [
+                {
+                    "conversation_id": "",
+                    "role": speaker,
+                    "content": text,
+                    "is_sensitive": False,
+                    "action_id": action_id,
+                    "metadata": None,
+                    "created_at": datetime.utcnow().isoformat() + "+00:00",
+                }
+            ],
+        )
 
 
 def update_action_session_time(
@@ -469,9 +505,21 @@ def build_session_state(
         raise RuntimeError("Missing authorization token")
 
     supabase = get_supabase_client(auth_token)
-    user = authenticate_user(supabase, auth_token)
-    action_type: ActionTransportType = "device_chat" if transport_kind == "esp32" else "web_chat"
+    email = get_email_from_auth_token(auth_token)
+    cached_user_context = get_cached_user_context(email)
+    if cached_user_context:
+        user = cached_user_context["user"]
+        patient_photos = cached_user_context.get("patient_photos") or []
+    else:
+        user = authenticate_user(supabase, auth_token)
+        patient = user.get("patient") or {}
+        patient_photos = get_patient_photos(
+            supabase,
+            patient.get("patient_id") or user.get("patient_id"),
+        )
+        set_cached_user_context(email, user=user, patient_photos=patient_photos)
 
+    action_type: ActionTransportType = "device_chat" if transport_kind == "esp32" else "web_chat"
     job_id = normalize_optional_uuid_header(websocket.headers.get("x-job-id"))
 
     action = create_action(
@@ -482,12 +530,10 @@ def build_session_state(
         session_time=0,
         job_id=job_id,
     )
-    patient = user.get("patient") or {}
-    patient_photos = get_patient_photos(
-        supabase,
-        patient.get("patient_id") or user.get("patient_id"),
-    )
-    chat_history = get_chat_history(supabase, user["user_id"], action_type)
+    chat_history = get_cached_chat_history(user["user_id"])
+    if chat_history is None:
+        chat_history = get_chat_history(supabase, user["user_id"], action_type)
+        set_cached_chat_history(user["user_id"], chat_history)
 
     return SessionState(
         transport_kind=transport_kind,

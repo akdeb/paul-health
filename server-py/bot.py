@@ -170,6 +170,7 @@ class ConversationPersistenceProcessor(FrameProcessor):
                         speaker="user",
                         content=frame.text,
                         action_id=self._session.action_id,
+                        user_id=self._session.user["user_id"],
                     )
                 except Exception as exc:
                     logger.warning("Failed to persist user transcript: {}", exc)
@@ -186,6 +187,7 @@ class ConversationPersistenceProcessor(FrameProcessor):
                             speaker="assistant",
                             content=assistant_text,
                             action_id=self._session.action_id,
+                            user_id=self._session.user["user_id"],
                         )
                     except Exception as exc:
                         logger.warning("Failed to persist assistant transcript: {}", exc)
