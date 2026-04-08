@@ -479,7 +479,8 @@ class SessionState:
     cleaned_up: bool = False
 
     def create_auth_message(self) -> dict[str, Any]:
-        device = self.user.get("device") or {}
+        device = get_device_info(self.supabase, self.user["user_id"]) or self.user.get("device") or {}
+        self.user["device"] = device
         personality = self.user.get("personality") or {}
         return {
             "type": "auth",
