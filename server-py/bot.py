@@ -6,7 +6,9 @@
 
 """Shared Pipecat bot logic for the local multi-transport server."""
 
+import asyncio
 import os
+from array import array
 from typing import Literal
 
 from dotenv import load_dotenv
@@ -24,8 +26,10 @@ from pipecat.frames.frames import (
     BotStartedSpeakingFrame,
     BotStoppedSpeakingFrame,
     EmulateUserStoppedSpeakingFrame,
+    EndFrame,
     ErrorFrame,
     Frame,
+    InputAudioRawFrame,
     InputTransportMessageFrame,
     InterruptionFrame,
     LLMContextFrame,
@@ -33,6 +37,7 @@ from pipecat.frames.frames import (
     LLMRunFrame,
     OutputAudioRawFrame,
     OutputTransportMessageFrame,
+    StartFrame,
     STTMuteFrame,
     TranscriptionFrame,
     TTSStoppedFrame,
@@ -195,6 +200,85 @@ class ConversationPersistenceProcessor(FrameProcessor):
         await self.push_frame(frame, direction)
 
 
+class ListeningIdleTimeoutProcessor(FrameProcessor):
+    """End the session if the user does not say anything after listening starts."""
+
+    def __init__(
+        self,
+        timeout_seconds: float = 10.0,
+        *,
+        arm_on_start: bool = False,
+        speech_peak_threshold: int = 1200,
+    ):
+        super().__init__()
+        self._timeout_seconds = timeout_seconds
+        self._arm_on_start = arm_on_start
+        self._speech_peak_threshold = speech_peak_threshold
+        self._idle_task: asyncio.Task | None = None
+
+    def _looks_like_user_speech(self, frame: InputAudioRawFrame) -> bool:
+        if not frame.audio:
+            return False
+        try:
+            samples = array("h")
+            samples.frombytes(frame.audio)
+            if not samples:
+                return False
+            peak = max(abs(sample) for sample in samples)
+            return peak >= self._speech_peak_threshold
+        except Exception:
+            return False
+
+    async def _cancel_idle_task(self) -> None:
+        if self._idle_task and not self._idle_task.done():
+            self._idle_task.cancel()
+            try:
+                await self._idle_task
+            except asyncio.CancelledError:
+                pass
+        self._idle_task = None
+
+    def _arm_idle_timeout(self) -> None:
+        if self._idle_task and not self._idle_task.done():
+            self._idle_task.cancel()
+
+        async def _timeout() -> None:
+            try:
+                await asyncio.sleep(self._timeout_seconds)
+                await self.push_frame(
+                    OutputTransportMessageFrame(message={"type": "server", "msg": "SESSION.END"}),
+                    FrameDirection.DOWNSTREAM,
+                )
+                await self.push_frame(EndFrame(), FrameDirection.DOWNSTREAM)
+            except asyncio.CancelledError:
+                raise
+
+        self._idle_task = self.create_task(_timeout())
+
+    async def process_frame(self, frame: Frame, direction: FrameDirection):
+        await super().process_frame(frame, direction)
+
+        if isinstance(frame, StartFrame):
+            if self._arm_on_start:
+                self._arm_idle_timeout()
+            else:
+                await self._cancel_idle_task()
+        elif isinstance(frame, (BotStartedSpeakingFrame, OutputAudioRawFrame)):
+            await self._cancel_idle_task()
+        elif isinstance(frame, (TTSStoppedFrame, BotStoppedSpeakingFrame)):
+            self._arm_idle_timeout()
+        elif isinstance(frame, InputAudioRawFrame) and self._looks_like_user_speech(frame):
+            await self._cancel_idle_task()
+        elif isinstance(frame, TranscriptionFrame) and frame.text.strip():
+            await self._cancel_idle_task()
+        elif isinstance(frame, (UserStoppedSpeakingFrame, VADUserStoppedSpeakingFrame)):
+            await self._cancel_idle_task()
+        elif isinstance(frame, ErrorFrame):
+            await self._cancel_idle_task()
+
+        await self.push_frame(frame, direction)
+
+
 async def run_bot_session(
     transport: BaseTransport,
     transport_kind: Literal["browser", "esp32"],
@@ -219,6 +303,10 @@ async def run_bot_session(
     else:
         route_processors, assistant_aggregator = build_classic_route(input_processor, context)
 
+    idle_timeout = ListeningIdleTimeoutProcessor(
+        timeout_seconds=10.0,
+        arm_on_start=not session.first_message.strip(),
+    )
     processors = [transport.input(), *route_processors]
     if voice_route != "gem_live":
         processors.append(user_persistence)
@@ -226,6 +314,7 @@ async def run_bot_session(
 
     if transport_kind in {"esp32", "browser"}:
         processors.append(RealtimeOutputControlProcessor(session))
+        processors.append(idle_timeout)
     processors.append(transport.output())
     processors.append(assistant_aggregator)
 

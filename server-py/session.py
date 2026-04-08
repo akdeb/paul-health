@@ -20,6 +20,7 @@ from supabase.client import ClientOptions
 from app_types import (
     ActionTransportType,
     IConversation,
+    IJob,
     IPatientPhotoContext,
     IUser,
 )
@@ -183,6 +184,26 @@ def get_device_info(supabase: Client, user_id: str) -> dict[str, Any] | None:
         return None
 
 
+def get_job_by_id(supabase: Client, job_id: str | None) -> IJob | None:
+    if not job_id:
+        return None
+
+    try:
+        response = (
+            supabase.table("jobs")
+            .select("job_id, patient_id, type, title, instructions, cron, enabled")
+            .eq("job_id", job_id)
+            .limit(1)
+            .execute()
+        )
+        if not response.data:
+            return None
+        return response.data[0]
+    except Exception as exc:
+        logger.warning("Failed to fetch job {}: {}", job_id, exc)
+        return None
+
+
 def compose_chat_history(conversations: list[IConversation]) -> str:
     return "\n".join(
         f"{item.get('role', 'unknown')} [{datetime.fromisoformat(str(item['created_at']).replace('Z', '+00:00')).isoformat()}]: {item.get('content', '')}"
@@ -274,6 +295,7 @@ def create_system_prompt(
     user: IUser,
     chat_history: list[IConversation],
     action_type: ActionTransportType,
+    current_job: IJob | None = None,
 ) -> str:
     chat_history_string = compose_chat_history(chat_history)
     history_label = (
@@ -299,6 +321,12 @@ def create_system_prompt(
                 "THE PATIENT'S CAREGIVER (USER DETAILS):",
                 _build_caregiver_context(user),
             ),
+            _format_context_block(
+                "THIS IS THE CURRENT SCHEDULED ACTIVITY (JOB CONTEXT):",
+                current_job,
+            )
+            if current_job
+            else "THIS IS THE CURRENT SCHEDULED ACTIVITY (JOB CONTEXT):\nNo scheduled job is attached to this session.",
             f"{history_label}\n{chat_history_string or 'No chat history yet.'}",
         ]
     )
@@ -426,6 +454,7 @@ class SessionState:
     system_prompt: str
     first_message: str
     patient_photos: list[IPatientPhotoContext] = field(default_factory=list)
+    current_job: IJob | None = None
     job_id: str | None = None
     cleaned_up: bool = False
 
@@ -477,6 +506,7 @@ def build_session_state(
 
     action_type: ActionTransportType = "device_chat" if transport_kind == "esp32" else "web_chat"
     job_id = normalize_optional_uuid_header(websocket.headers.get("x-job-id"))
+    current_job = get_job_by_id(supabase, job_id)
 
     action = create_action(
         supabase,
@@ -499,8 +529,9 @@ def build_session_state(
         auth_token=auth_token,
         action_id=action["action_id"],
         action_started_at=time.time(),
-        system_prompt=create_system_prompt(user, chat_history, action_type),
+        system_prompt=create_system_prompt(user, chat_history, action_type, current_job),
         first_message=create_first_message(user),
         patient_photos=patient_photos,
+        current_job=current_job,
         job_id=job_id,
     )

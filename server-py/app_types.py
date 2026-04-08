@@ -8,6 +8,13 @@ Role = Literal["user", "assistant"]
 ActionType = Literal["device_event", "web_chat", "device_chat"]
 ActionTransportType = Literal["web_chat", "device_chat"]
 ModelProvider = Literal["openai", "gemini", "elevenlabs", "hume", "grok"]
+CareActivityType = Literal[
+    "guess_flag",
+    "guess_capital",
+    "conversation_news",
+    "medication_reminder",
+    "memory_prompt",
+]
 
 
 class IConversation(TypedDict):
@@ -105,3 +112,13 @@ class IUser(TypedDict, total=False):
 class IPatientPhotoContext(TypedDict):
     mimeType: str
     data: str
+
+
+class IJob(TypedDict, total=False):
+    job_id: str
+    patient_id: str
+    type: CareActivityType
+    title: str
+    instructions: str
+    cron: str
+    enabled: bool
