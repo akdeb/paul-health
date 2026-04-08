@@ -212,8 +212,28 @@ def compose_chat_history(conversations: list[IConversation]) -> str:
     )
 
 
-def create_first_message(user: dict[str, Any]) -> str:
-    return (user.get("personality") or {}).get("first_message_prompt", "") or ""
+def create_first_message(
+    user: dict[str, Any],
+    current_job: IJob | None = None,
+) -> str:
+    base_prompt = (user.get("personality") or {}).get("first_message_prompt", "") or ""
+    if not current_job:
+        return base_prompt
+
+    job_summary = {
+        "job_id": current_job.get("job_id"),
+        "type": current_job.get("type"),
+        "title": current_job.get("title"),
+        "instructions": current_job.get("instructions"),
+    }
+    job_prompt = (
+        "This session was triggered by a scheduled activity. "
+        "Start the conversation around the scheduled activity below instead of using a generic greeting. "
+        "Do not mention JSON or internal scheduling. "
+        "Naturally guide the opening toward this topic.\n"
+        f"{json.dumps(job_summary, indent=2)}"
+    )
+    return "\n\n".join(part for part in [base_prompt, job_prompt] if part)
 
 
 def _build_personality_context(personality: dict[str, Any] | None) -> dict[str, Any] | None:
@@ -507,6 +527,13 @@ def build_session_state(
     action_type: ActionTransportType = "device_chat" if transport_kind == "esp32" else "web_chat"
     job_id = normalize_optional_uuid_header(websocket.headers.get("x-job-id"))
     current_job = get_job_by_id(supabase, job_id)
+    logger.info(
+        "Session bootstrap: transport={} user_id={} job_id={} current_job_found={}",
+        transport_kind,
+        user["user_id"],
+        job_id,
+        current_job is not None,
+    )
 
     action = create_action(
         supabase,
@@ -530,7 +557,7 @@ def build_session_state(
         action_id=action["action_id"],
         action_started_at=time.time(),
         system_prompt=create_system_prompt(user, chat_history, action_type, current_job),
-        first_message=create_first_message(user),
+        first_message=create_first_message(user, current_job),
         patient_photos=patient_photos,
         current_job=current_job,
         job_id=job_id,

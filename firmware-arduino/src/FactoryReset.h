@@ -45,8 +45,8 @@ void quickSessionContextReset() {
     preferences.putString("auth_token", "");
     preferences.putString("timezone", "");
     preferences.putString("next_job_id", "");
-    preferences.putULong64("next_job_fire_at_epoch", 0);
-    preferences.putULong64("next_job_check_at_epoch", 0);
+    preferences.putULong64("job_fire_at", 0);
+    preferences.putULong64("job_check_at", 0);
     preferences.end();
 }
 

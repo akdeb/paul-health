@@ -3,6 +3,7 @@
 #include <driver/rtc_io.h>
 #include "LEDHandler.h"
 #include "Config.h"
+#include "Jobs.h"
 #include "SPIFFS.h"
 #include "WifiManager.h"
 #include <driver/touch_sensor.h>
@@ -22,6 +23,27 @@
 AsyncWebServer webServer(80);
 WIFIMANAGER WifiManager;
 esp_err_t getErr = ESP_OK;
+
+static void printWakeReasonDebug()
+{
+    const esp_sleep_wakeup_cause_t wakeCause = esp_sleep_get_wakeup_cause();
+    Serial.printf("Wake reason code: %d\n", static_cast<int>(wakeCause));
+
+    switch (wakeCause) {
+    case ESP_SLEEP_WAKEUP_TIMER:
+        Serial.println("Wake reason: timer");
+        break;
+    case ESP_SLEEP_WAKEUP_EXT0:
+        Serial.println("Wake reason: ext0/button");
+        break;
+    case ESP_SLEEP_WAKEUP_UNDEFINED:
+        Serial.println("Wake reason: cold boot / reset");
+        break;
+    default:
+        Serial.println("Wake reason: other");
+        break;
+    }
+}
 
 
 // Main Thread -> onButtonLongPressUpEventCb -> enterSleep()
@@ -72,27 +94,7 @@ void enterSleep()
         touchSleepWakeUpEnable(TOUCH_PAD_NUM2, SLEEP_THRESHOLD);
     #endif
 
-    time_t now = time(nullptr);
-    uint64_t wakeEpoch = 0;
-
-    if (now > 0) {
-        if (nextJobFireAtEpochGlobal > static_cast<uint64_t>(now)) {
-            wakeEpoch = nextJobFireAtEpochGlobal;
-        }
-
-        if (
-            nextJobCheckAtEpochGlobal > static_cast<uint64_t>(now) &&
-            (wakeEpoch == 0 || nextJobCheckAtEpochGlobal < wakeEpoch)
-        ) {
-            wakeEpoch = nextJobCheckAtEpochGlobal;
-        }
-
-        if (wakeEpoch > static_cast<uint64_t>(now)) {
-            const uint64_t wakeDelaySeconds = wakeEpoch - static_cast<uint64_t>(now);
-            esp_sleep_enable_timer_wakeup(wakeDelaySeconds * 1000000ULL);
-            Serial.printf("Scheduled timer wake in %llu seconds\n", wakeDelaySeconds);
-        }
-    }
+    configureSleepWakeFromJobs();
 
     esp_deep_sleep_start();
     delay(1000);
@@ -142,11 +144,8 @@ void loadSessionContextFromNVS()
 {
     preferences.begin("auth", false);
     authTokenGlobal = preferences.getString("auth_token", "");
-    timezoneGlobal = preferences.getString("timezone", "UTC");
-    nextJobIdGlobal = preferences.getString("next_job_id", "");
-    nextJobFireAtEpochGlobal = preferences.getULong64("next_job_fire_at_epoch", 0);
-    nextJobCheckAtEpochGlobal = preferences.getULong64("next_job_check_at_epoch", 0);
     preferences.end();
+    loadJobContextFromNVS();
 }
 
 void setupWiFi()
@@ -238,7 +237,7 @@ void setupDeviceMetadata() {
     loadSessionContextFromNVS();
     getOTAStatusFromNVS();
 
-    Serial.println("Timezone: " + timezoneGlobal);
+    printStoredSessionContext();
 
     if (otaState == OTA_IN_PROGRESS || otaState == OTA_COMPLETE) {
         deviceState = OTA;
@@ -251,9 +250,12 @@ void setup()
 
     Serial.begin(115200);
     delay(500);
+    Serial.println("\n=== PAUL boot ===");
+    printWakeReasonDebug();
 
     // SETUP
     setupDeviceMetadata();
+    printCurrentClockDebug();
     wsMutex = xSemaphoreCreateMutex();    
 
     // INTERRUPT

@@ -6,13 +6,12 @@
  * (Attribution-NonCommercial-ShareAlike 4.0 International)
 **/
 #include "WifiManager.h"
+#include "Jobs.h"
 #include "OTA.h"
 #include "AsyncJson.h"
 #include "ArduinoJson.h"
 #include <WiFi.h>
-#include <Preferences.h>
 #include <Config.h>
-#include <time.h>
 
 bool isDeviceRegistered() {
   if (!authTokenGlobal.isEmpty()) {
@@ -68,96 +67,6 @@ bool isDeviceRegistered() {
     return false;
 }
 
-static bool syncNtpClock() {
-  configTime(0, 0, "pool.ntp.org", "time.google.com", "time.nist.gov");
-
-  for (int i = 0; i < 20; i++) {
-    time_t now = time(nullptr);
-    if (now > 1700000000) {
-      return true;
-    }
-    delay(250);
-  }
-
-  return false;
-}
-
-static String getDueJobIdNow() {
-  if (nextJobIdGlobal.isEmpty() || nextJobFireAtEpochGlobal == 0) {
-    return "";
-  }
-
-  time_t now = time(nullptr);
-  if (now <= 0) {
-    return "";
-  }
-
-  const int64_t delta = static_cast<int64_t>(nextJobFireAtEpochGlobal) -
-      static_cast<int64_t>(now);
-
-  // Treat as due when we are up to 60s early or up to 10m late.
-  if (delta <= 60 && delta >= -600) {
-    return nextJobIdGlobal;
-  }
-
-  return "";
-}
-
-static bool refreshNextJobSchedule() {
-  if (authTokenGlobal.isEmpty()) {
-    return false;
-  }
-
-  HTTPClient http;
-
-  #ifdef DEV_MODE
-  http.begin("http://" + String(backend_server) + ":" + String(backend_port) +
-               "/api/next_job");
-  #else
-  WiFiClientSecure client;
-  client.setCACert(Vercel_CA_cert);
-  http.begin(client, "https://" + String(backend_server) + "/api/next_job");
-  #endif
-
-  http.addHeader("Authorization", "Bearer " + String(authTokenGlobal));
-  http.setTimeout(10000);
-
-  int httpCode = http.GET();
-  if (httpCode != HTTP_CODE_OK) {
-    http.end();
-    return false;
-  }
-
-  String payload = http.getString();
-  JsonDocument doc;
-  DeserializationError error = deserializeJson(doc, payload);
-
-  if (error) {
-    http.end();
-    return false;
-  }
-
-  String timezone = doc["timezone"] | String("UTC");
-  String nextJobId = doc["next_job"]["job_id"] | String("");
-  uint64_t nextJobFireEpoch = doc["next_job"]["fire_at_epoch"] | static_cast<uint64_t>(0);
-  uint64_t nextCheckEpoch = doc["next_check_at_epoch"] | static_cast<uint64_t>(0);
-
-  preferences.begin("auth", false);
-  preferences.putString("timezone", timezone);
-  preferences.putString("next_job_id", nextJobId);
-  preferences.putULong64("next_job_fire_at_epoch", nextJobFireEpoch);
-  preferences.putULong64("next_job_check_at_epoch", nextCheckEpoch);
-  preferences.end();
-
-  timezoneGlobal = timezone;
-  nextJobIdGlobal = nextJobId;
-  nextJobFireAtEpochGlobal = nextJobFireEpoch;
-  nextJobCheckAtEpochGlobal = nextCheckEpoch;
-
-  http.end();
-  return true;
-}
-
 void connectCb() {
   Serial.println("On connecting to Wifi");
   if (isDeviceRegistered())  {
@@ -167,10 +76,7 @@ void connectCb() {
         markOTAUpdateComplete();
         ESP.restart();
     } else {
-        syncNtpClock();
-        const String dueJobId = getDueJobIdNow();
-        refreshNextJobSchedule();
-        activeJobIdGlobal = dueJobId;
+        prepareJobContextBeforeWebsocket();
         websocketSetup(ws_server, ws_port, ws_path);
     }
   } 
