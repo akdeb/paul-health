@@ -12,7 +12,7 @@ from loguru import logger
 
 from app_types import IConversation, IUser
 
-USER_CONTEXT_TTL_SECONDS = int(os.getenv("USER_CONTEXT_TTL_SECONDS", "900"))
+USER_CONTEXT_TTL_SECONDS = int(os.getenv("USER_CONTEXT_TTL_SECONDS", "604800"))
 CHAT_HISTORY_TTL_SECONDS = int(os.getenv("CHAT_HISTORY_TTL_SECONDS", "3600"))
 MAX_CHAT_HISTORY_ITEMS = int(os.getenv("MAX_CHAT_HISTORY_ITEMS", "30"))
 
