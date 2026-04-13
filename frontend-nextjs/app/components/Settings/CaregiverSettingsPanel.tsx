@@ -41,21 +41,41 @@ export default function CaregiverSettingsPanel({
     setLanguageState(selectedUser.language_code ?? "en-US");
   }, [selectedUser.language_code, selectedUser.name]);
 
+  const invalidateUserContextCache = async () => {
+    const response = await fetch("/api/cache/user-context", {
+      method: "POST",
+    });
+
+    if (!response.ok) {
+      throw new Error("Failed to invalidate user context cache");
+    }
+  };
+
   const saveCaregiverSettings = async () => {
     setIsSaving(true);
-    await updateUser(
-      supabase,
-      {
-        name: supervisorName,
-        language_code: languageState,
-      },
-      selectedUser.user_id,
-    );
-    toast({
-      description: "Caregiver settings saved.",
-    });
-    setIsSaving(false);
-    router.refresh();
+    try {
+      await updateUser(
+        supabase,
+        {
+          name: supervisorName,
+          language_code: languageState,
+        },
+        selectedUser.user_id,
+      );
+      await invalidateUserContextCache();
+      toast({
+        description: "Caregiver settings saved.",
+      });
+      router.refresh();
+    } catch (error) {
+      console.error("Error saving caregiver settings:", error);
+      toast({
+        description: "Failed to save caregiver settings.",
+        variant: "destructive",
+      });
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   return (
