@@ -234,7 +234,7 @@ void setupDeviceMetadata() {
 
     const esp_sleep_wakeup_cause_t wakeCause = esp_sleep_get_wakeup_cause();
     const bool isTimerWake = wakeCause == ESP_SLEEP_WAKEUP_TIMER;
-    deviceState = wakeCause == ESP_SLEEP_WAKEUP_TIMER ? WAITING : IDLE;
+    deviceState = IDLE;
 
     loadSessionContextFromNVS();
     getOTAStatusFromNVS();
