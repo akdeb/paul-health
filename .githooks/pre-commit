@@ -9,6 +9,10 @@ BOOTLOADER_SOURCE="$BUILD_DIR/bootloader.bin"
 PARTITIONS_SOURCE="$BUILD_DIR/partitions.bin"
 BOOT_APP_SOURCE="$HOME/.platformio/packages/framework-arduinoespressif32/tools/partitions/boot_app0.bin"
 
+if ! git diff --cached --name-only --diff-filter=ACMR | grep -q '^firmware-arduino/'; then
+  exit 0
+fi
+
 for source in "$FIRMWARE_SOURCE" "$BOOTLOADER_SOURCE" "$PARTITIONS_SOURCE" "$BOOT_APP_SOURCE"; do
   if [ ! -f "$source" ]; then
     echo "[pre-commit] Missing flash artifact: $source" >&2
