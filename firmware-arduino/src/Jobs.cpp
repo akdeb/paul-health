@@ -214,6 +214,17 @@ bool refreshNextJobSchedule()
     return true;
 }
 
+void clearConsumedJobContext()
+{
+    persistJobContext(
+        timezoneGlobal,
+        "",
+        0,
+        nextJobCheckAtEpochGlobal
+    );
+    Serial.println("[JOBS] Cleared consumed scheduled job from NVS.");
+}
+
 bool shouldStartWebsocketForCurrentWake()
 {
     activeJobIdGlobal = "";
@@ -236,6 +247,7 @@ bool shouldStartWebsocketForCurrentWake()
     const String dueJobId = getDueJobIdNow();
     if (!dueJobId.isEmpty()) {
         activeJobIdGlobal = dueJobId;
+        clearConsumedJobContext();
         deviceState = IDLE;
         Serial.println("[JOBS] Timer wake hit a due scheduled job: " + activeJobIdGlobal);
         Serial.println("[JOBS] Handing LED control back to the active websocket session.");
