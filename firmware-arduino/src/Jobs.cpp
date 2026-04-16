@@ -241,9 +241,6 @@ bool shouldStartWebsocketForCurrentWake()
         return true;
     }
 
-    deviceState = WAITING;
-    Serial.println("[JOBS] Timer wake entering WAITING state for job check.");
-
     const String dueJobId = getDueJobIdNow();
     if (!dueJobId.isEmpty()) {
         activeJobIdGlobal = dueJobId;
@@ -253,6 +250,9 @@ bool shouldStartWebsocketForCurrentWake()
         Serial.println("[JOBS] Handing LED control back to the active websocket session.");
         return true;
     }
+
+    deviceState = WAITING;
+    Serial.println("[JOBS] Timer wake entering WAITING state for job check.");
 
     const bool refreshed = refreshNextJobSchedule();
     Serial.printf("[JOBS] Timer wake /api/next_job sync %s\n", refreshed ? "ok" : "failed");
