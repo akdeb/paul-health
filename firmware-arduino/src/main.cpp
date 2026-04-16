@@ -232,14 +232,15 @@ void setupDeviceMetadata() {
     // quickSessionContextReset(); // doesn't reset wifi credentials
     // quickFactoryResetDevice();
 
-    deviceState = IDLE;
+    const esp_sleep_wakeup_cause_t wakeCause = esp_sleep_get_wakeup_cause();
+    deviceState = wakeCause == ESP_SLEEP_WAKEUP_TIMER ? WAITING : IDLE;
 
     loadSessionContextFromNVS();
     getOTAStatusFromNVS();
 
     printStoredSessionContext();
 
-    if (otaState == OTA_IN_PROGRESS || otaState == OTA_COMPLETE) {
+    if (otaState == OTA_IN_PROGRESS) {
         deviceState = OTA;
     }
 }

@@ -21,6 +21,7 @@ void turnOnLED();
 void setupRGBLED();
 void turnOnBlueLED();
 void turnOnRedLEDFlash();
+void staticOrange();
 void ledTask(void *parameter);
 
 #endif

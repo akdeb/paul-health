@@ -6,6 +6,7 @@ import { createClient } from "@/utils/supabase/server";
 import HomePageSubtitles from "@/app/components/HomePageSubtitles";
 import { getActionsByUserId } from "@/db/actions";
 import ActionsFeed from "@/app/components/Actions/ActionsFeed";
+import ClearHistoryButton from "@/app/components/Actions/ClearHistoryButton";
 
 export const metadata: Metadata = {
     title: "Actions",
@@ -34,9 +35,12 @@ export default async function Home() {
 
     return (
         <div className="flex flex-col gap-6">
-            <div className="flex flex-col gap-2">
+            <div className="flex gap-3 flex-row justify-between">
+              <div className="flex flex-col gap-2">
                 <h1 className="text-3xl font-normal">Actions</h1>
                 <HomePageSubtitles user={dbUser} page="actions" />
+              </div>
+              <ClearHistoryButton />
             </div>
             <ActionsFeed initialActions={initialActions} />
         </div>

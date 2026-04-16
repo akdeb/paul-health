@@ -284,6 +284,13 @@ void staticYellow()
     digitalWrite(GREEN_LED_PIN, HIGH);
 }
 
+void staticOrange()
+{
+    analogWrite(RED_LED_PIN, 255);
+    analogWrite(GREEN_LED_PIN, 96);
+    analogWrite(BLUE_LED_PIN, 0);
+}
+
 void ledTask(void *parameter)
 {
     setupRGBLED();
@@ -315,6 +322,9 @@ void ledTask(void *parameter)
             break;
         case LISTENING:
             setStaticColor(StaticColor::YELLOW);
+            break;
+        case WAITING:
+            staticOrange();
             break;
         case OTA:
             setStaticColor(StaticColor::CYAN);

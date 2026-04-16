@@ -6,9 +6,42 @@
 #include <Preferences.h>
 #include <WiFiClientSecure.h>
 #include <time.h>
+#include <esp_sleep.h>
 
 static constexpr const char *NVS_JOB_FIRE_KEY = "job_fire_at";
 static constexpr const char *NVS_JOB_CHECK_KEY = "job_check_at";
+static constexpr uint64_t JOB_REFRESH_INTERVAL_SECONDS = 300;
+
+static uint64_t getNextPeriodicCheckEpoch(time_t now)
+{
+    if (now <= 0) {
+        return 0;
+    }
+
+    const uint64_t nowEpoch = static_cast<uint64_t>(now);
+    return ((nowEpoch / JOB_REFRESH_INTERVAL_SECONDS) + 1) *
+        JOB_REFRESH_INTERVAL_SECONDS;
+}
+
+static void persistJobContext(
+    const String &timezone,
+    const String &nextJobId,
+    uint64_t nextJobFireEpoch,
+    uint64_t nextCheckEpoch
+)
+{
+    preferences.begin("auth", false);
+    preferences.putString("timezone", timezone);
+    preferences.putString("next_job_id", nextJobId);
+    preferences.putULong64(NVS_JOB_FIRE_KEY, nextJobFireEpoch);
+    preferences.putULong64(NVS_JOB_CHECK_KEY, nextCheckEpoch);
+    preferences.end();
+
+    timezoneGlobal = timezone;
+    nextJobIdGlobal = nextJobId;
+    nextJobFireAtEpochGlobal = nextJobFireEpoch;
+    nextJobCheckAtEpochGlobal = nextCheckEpoch;
+}
 
 void printEpochDebug(const char *label, uint64_t epochSeconds)
 {
@@ -171,19 +204,9 @@ bool refreshNextJobSchedule()
     String timezone = doc["timezone"] | String("UTC");
     String nextJobId = doc["next_job"]["job_id"] | String("");
     uint64_t nextJobFireEpoch = doc["next_job"]["fire_at_epoch"] | static_cast<uint64_t>(0);
-    uint64_t nextCheckEpoch = doc["next_check_at_epoch"] | static_cast<uint64_t>(0);
+    uint64_t nextCheckEpoch = getNextPeriodicCheckEpoch(time(nullptr));
 
-    preferences.begin("auth", false);
-    preferences.putString("timezone", timezone);
-    preferences.putString("next_job_id", nextJobId);
-    preferences.putULong64(NVS_JOB_FIRE_KEY, nextJobFireEpoch);
-    preferences.putULong64(NVS_JOB_CHECK_KEY, nextCheckEpoch);
-    preferences.end();
-
-    timezoneGlobal = timezone;
-    nextJobIdGlobal = nextJobId;
-    nextJobFireAtEpochGlobal = nextJobFireEpoch;
-    nextJobCheckAtEpochGlobal = nextCheckEpoch;
+    persistJobContext(timezone, nextJobId, nextJobFireEpoch, nextCheckEpoch);
 
     printJobScheduleSnapshot("Updated next job schedule");
 
@@ -191,36 +214,44 @@ bool refreshNextJobSchedule()
     return true;
 }
 
-void prepareJobContextBeforeWebsocket()
+bool shouldStartWebsocketForCurrentWake()
 {
     activeJobIdGlobal = "";
 
     const bool ntpSynced = syncNtpClock();
     Serial.printf("[TIME] NTP sync %s\n", ntpSynced ? "ok" : "failed");
-    printJobScheduleSnapshot("Job schedule snapshot before sequential /api/next_job sync");
+    printJobScheduleSnapshot("Job schedule snapshot at wake");
 
-    const String dueJobIdBeforeRefresh = getDueJobIdNow();
-    if (dueJobIdBeforeRefresh.isEmpty()) {
-        Serial.println("[JOBS] No stored job is currently due before refresh.");
-    } else {
-        Serial.println("[JOBS] Stored due job before refresh: " + dueJobIdBeforeRefresh);
+    const esp_sleep_wakeup_cause_t wakeCause = esp_sleep_get_wakeup_cause();
+    const bool isTimerWake = wakeCause == ESP_SLEEP_WAKEUP_TIMER;
+
+    if (!isTimerWake) {
+        Serial.println("[JOBS] Non-timer wake detected; starting websocket without scheduled job lookup.");
+        return true;
+    }
+
+    deviceState = WAITING;
+    Serial.println("[JOBS] Timer wake entering WAITING state for job check.");
+
+    const String dueJobId = getDueJobIdNow();
+    if (!dueJobId.isEmpty()) {
+        activeJobIdGlobal = dueJobId;
+        Serial.println("[JOBS] Timer wake hit a due scheduled job: " + activeJobIdGlobal);
+        return true;
     }
 
     const bool refreshed = refreshNextJobSchedule();
-    Serial.printf("[JOBS] Sequential /api/next_job sync %s\n", refreshed ? "ok" : "failed");
-
-    if (!dueJobIdBeforeRefresh.isEmpty()) {
-        activeJobIdGlobal = dueJobIdBeforeRefresh;
-        Serial.println("[JOBS] Active job for websocket (preserved due job): " + activeJobIdGlobal);
-        return;
-    }
+    Serial.printf("[JOBS] Timer wake /api/next_job sync %s\n", refreshed ? "ok" : "failed");
 
     const String dueJobIdAfterRefresh = getDueJobIdNow();
-    activeJobIdGlobal = dueJobIdAfterRefresh;
-    Serial.println(
-        "[JOBS] Active job for websocket: " +
-        (activeJobIdGlobal.isEmpty() ? String("(none)") : activeJobIdGlobal)
-    );
+    if (!dueJobIdAfterRefresh.isEmpty()) {
+        activeJobIdGlobal = dueJobIdAfterRefresh;
+        Serial.println("[JOBS] Refreshed schedule contains a job due now: " + activeJobIdGlobal);
+        return true;
+    }
+
+    Serial.println("[JOBS] No scheduled job due on timer wake. Going back to sleep.");
+    return false;
 }
 
 void configureSleepWakeFromJobs()
@@ -229,6 +260,18 @@ void configureSleepWakeFromJobs()
     uint64_t wakeEpoch = 0;
 
     if (now > 0) {
+        const uint64_t nextPeriodicCheckEpoch = getNextPeriodicCheckEpoch(now);
+        if (nextJobCheckAtEpochGlobal != nextPeriodicCheckEpoch) {
+            nextJobCheckAtEpochGlobal = nextPeriodicCheckEpoch;
+            persistJobContext(
+                timezoneGlobal,
+                nextJobIdGlobal,
+                nextJobFireAtEpochGlobal,
+                nextJobCheckAtEpochGlobal
+            );
+            Serial.println("job_check_at aligned to the next 5-minute boundary.");
+        }
+
         if (nextJobFireAtEpochGlobal > static_cast<uint64_t>(now)) {
             wakeEpoch = nextJobFireAtEpochGlobal;
             Serial.println("Next wake target chosen from job_fire_at");

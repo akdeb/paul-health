@@ -11,7 +11,7 @@ void loadJobContextFromNVS();
 bool syncNtpClock();
 String getDueJobIdNow();
 bool refreshNextJobSchedule();
-void prepareJobContextBeforeWebsocket();
+bool shouldStartWebsocketForCurrentWake();
 void configureSleepWakeFromJobs();
 
 #endif

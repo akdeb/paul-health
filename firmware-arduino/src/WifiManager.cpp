@@ -72,12 +72,21 @@ void connectCb() {
   if (isDeviceRegistered())  {
     if (otaState == OTA_IN_PROGRESS) {
         performOTAUpdate();
-    } else if (otaState == OTA_COMPLETE) {
-        markOTAUpdateComplete();
-        ESP.restart();
     } else {
-        prepareJobContextBeforeWebsocket();
-        websocketSetup(ws_server, ws_port, ws_path);
+        if (otaState == OTA_COMPLETE) {
+            const bool otaAcked = markOTAUpdateComplete();
+            Serial.println(
+                otaAcked
+                    ? "[OTA] Completion acknowledged by backend."
+                    : "[OTA] Failed to acknowledge completion; will retry on next Wi-Fi connect."
+            );
+        }
+
+        if (shouldStartWebsocketForCurrentWake()) {
+            websocketSetup(ws_server, ws_port, ws_path);
+        } else {
+            sleepRequested = true;
+        }
     }
   } 
 }

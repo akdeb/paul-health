@@ -212,28 +212,85 @@ def compose_chat_history(conversations: list[IConversation]) -> str:
     )
 
 
+def _compose_recent_chat_history(
+    conversations: list[IConversation],
+    *,
+    max_items: int = 6,
+) -> str:
+    recent_items = conversations[-max_items:]
+    return compose_chat_history(recent_items)
+
+
 def create_first_message(
     user: dict[str, Any],
+    chat_history: list[IConversation],
+    action_type: ActionTransportType,
     current_job: IJob | None = None,
 ) -> str:
     base_prompt = (user.get("personality") or {}).get("first_message_prompt", "") or ""
-    if not current_job:
-        return base_prompt
+    history_label = "device chat history" if action_type == "device_chat" else "web chat history"
+    recent_chat_history = _compose_recent_chat_history(chat_history)
 
-    job_summary = {
-        "job_id": current_job.get("job_id"),
-        "type": current_job.get("type"),
-        "title": current_job.get("title"),
-        "instructions": current_job.get("instructions"),
-    }
-    job_prompt = (
-        "This session was triggered by a scheduled activity. "
-        "Start the conversation around the scheduled activity below instead of using a generic greeting. "
-        "Do not mention JSON or internal scheduling. "
-        "Naturally guide the opening toward this topic.\n"
-        f"{json.dumps(job_summary, indent=2)}"
+    if current_job:
+        job_summary = {
+            "job_id": current_job.get("job_id"),
+            "type": current_job.get("type"),
+            "title": current_job.get("title"),
+            "instructions": current_job.get("instructions"),
+        }
+        return "\n\n".join(
+            part
+            for part in [
+                base_prompt,
+                (
+                    "This session was triggered by a scheduled activity. "
+                    "Open naturally around the scheduled activity below. "
+                    "Do not give a generic greeting and do not mention internal scheduling."
+                ),
+                (
+                    "If the recent chat history is relevant, continue from it naturally instead of restarting the relationship. "
+                    "Do not re-introduce yourself unless the patient is clearly confused or asks who you are."
+                )
+                if recent_chat_history
+                else "",
+                f"THIS IS THE MOST RECENT {history_label.upper()} CONTEXT:\n{recent_chat_history}"
+                if recent_chat_history
+                else "",
+                f"SCHEDULED ACTIVITY:\n{json.dumps(job_summary, indent=2)}",
+            ]
+            if part
+        )
+
+    if recent_chat_history:
+        return "\n\n".join(
+            part
+            for part in [
+                (
+                    "Continue the conversation naturally from the recent chat history below. "
+                    "Respond to what was already being discussed. "
+                    "Do not restart with the same stock introduction, and do not re-introduce yourself unless the patient is clearly confused or explicitly asks."
+                ),
+                (
+                    "Use the personality's first message prompt only as style guidance for warmth, tone, and pacing. "
+                    "It is not a script to repeat when there is existing history."
+                ),
+                base_prompt,
+                f"THIS IS THE MOST RECENT {history_label.upper()} CONTEXT:\n{recent_chat_history}",
+            ]
+            if part
+        )
+
+    return "\n\n".join(
+        part
+        for part in [
+            base_prompt,
+            (
+                "There is no recent chat history for this transport. "
+                "Treat this as a genuine opening and start naturally without sounding repetitive or over-rehearsed."
+            ),
+        ]
+        if part
     )
-    return "\n\n".join(part for part in [base_prompt, job_prompt] if part)
 
 
 def _build_personality_context(personality: dict[str, Any] | None) -> dict[str, Any] | None:
@@ -340,6 +397,13 @@ def create_system_prompt(
             _format_context_block(
                 "THE PATIENT'S CAREGIVER (USER DETAILS):",
                 _build_caregiver_context(user),
+            ),
+            (
+                "CONVERSATION ENGINE:\n"
+                "If there is chat history, continue from it naturally.\n"
+                "Do not keep restarting the relationship.\n"
+                "Do not repeat the same generic opening line every session.\n"
+                "Use the recent transcript to decide whether to follow up, acknowledge, continue a topic, or gently re-engage."
             ),
             _format_context_block(
                 "THIS IS THE CURRENT SCHEDULED ACTIVITY (JOB CONTEXT):",
@@ -558,7 +622,7 @@ def build_session_state(
         action_id=action["action_id"],
         action_started_at=time.time(),
         system_prompt=create_system_prompt(user, chat_history, action_type, current_job),
-        first_message=create_first_message(user, current_job),
+        first_message=create_first_message(user, chat_history, action_type, current_job),
         patient_photos=patient_photos,
         current_job=current_job,
         job_id=job_id,

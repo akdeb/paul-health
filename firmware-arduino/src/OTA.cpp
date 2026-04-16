@@ -38,7 +38,7 @@ iVDFanoCrMVIpQ59XWHkzdFmoHXHBV7oibVjGSO7ULSQ7MJ1Nz51phuDJSgAIU7A
 -----END CERTIFICATE-----
 )EOF";
 
-void markOTAUpdateComplete() {
+bool markOTAUpdateComplete() {
     HTTPClient http;
     
     // Construct the JSON payload
@@ -67,7 +67,9 @@ void markOTAUpdateComplete() {
     if (httpCode > 0) {
         if (httpCode == HTTP_CODE_OK) {
             Serial.println("OTA status updated successfully");
-             setOTAStatusInNVS(OTA_IDLE);
+            setOTAStatusInNVS(OTA_IDLE);
+            http.end();
+            return true;
         } else {
             Serial.printf("OTA status update failed with code: %d\n", httpCode);
         }
@@ -76,6 +78,7 @@ void markOTAUpdateComplete() {
     }
     
     http.end();
+    return false;
 }
 
 void getOTAStatusFromNVS()
