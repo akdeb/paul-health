@@ -80,7 +80,7 @@ const getActionTagClasses = (type: ActionType, jobId: string | null) => {
     case "web_chat":
       return "bg-blue-500 text-white";
     case "device_chat":
-      return jobId ? "bg-red-500 text-white" : "bg-emerald-500 text-white";
+      return jobId ? "bg-orange-500 text-white" : "bg-emerald-500 text-white";
     case "device_event":
       return "bg-amber-500 text-white";
     default:

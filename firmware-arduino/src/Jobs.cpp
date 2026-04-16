@@ -236,20 +236,15 @@ bool shouldStartWebsocketForCurrentWake()
     const String dueJobId = getDueJobIdNow();
     if (!dueJobId.isEmpty()) {
         activeJobIdGlobal = dueJobId;
+        deviceState = IDLE;
         Serial.println("[JOBS] Timer wake hit a due scheduled job: " + activeJobIdGlobal);
+        Serial.println("[JOBS] Handing LED control back to the active websocket session.");
         return true;
     }
 
     const bool refreshed = refreshNextJobSchedule();
     Serial.printf("[JOBS] Timer wake /api/next_job sync %s\n", refreshed ? "ok" : "failed");
-
-    const String dueJobIdAfterRefresh = getDueJobIdNow();
-    if (!dueJobIdAfterRefresh.isEmpty()) {
-        activeJobIdGlobal = dueJobIdAfterRefresh;
-        Serial.println("[JOBS] Refreshed schedule contains a job due now: " + activeJobIdGlobal);
-        return true;
-    }
-
+    deviceState = IDLE;
     Serial.println("[JOBS] No scheduled job due on timer wake. Going back to sleep.");
     return false;
 }
