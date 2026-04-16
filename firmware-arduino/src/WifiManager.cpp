@@ -70,23 +70,37 @@ bool isDeviceRegistered() {
 void connectCb() {
   Serial.println("On connecting to Wifi");
   if (isDeviceRegistered())  {
-    if (otaState == OTA_IN_PROGRESS) {
-        performOTAUpdate();
-    } else {
-        if (otaState == OTA_COMPLETE) {
-            const bool otaAcked = markOTAUpdateComplete();
-            Serial.println(
-                otaAcked
-                    ? "[OTA] Completion acknowledged by backend."
-                    : "[OTA] Failed to acknowledge completion; will retry on next Wi-Fi connect."
-            );
-        }
+    const esp_sleep_wakeup_cause_t wakeCause = esp_sleep_get_wakeup_cause();
+    const bool isTimerWake = wakeCause == ESP_SLEEP_WAKEUP_TIMER;
 
+    if (isTimerWake) {
+        Serial.println("[JOBS] Timer wake using job-check-only path.");
         if (shouldStartWebsocketForCurrentWake()) {
             websocketSetup(ws_server, ws_port, ws_path);
         } else {
             sleepRequested = true;
         }
+        return;
+    }
+
+    if (otaState == OTA_IN_PROGRESS) {
+        performOTAUpdate();
+        return;
+    }
+
+    if (otaState == OTA_COMPLETE) {
+        const bool otaAcked = markOTAUpdateComplete();
+        Serial.println(
+            otaAcked
+                ? "[OTA] Completion acknowledged by backend."
+                : "[OTA] Failed to acknowledge completion; will retry on next Wi-Fi connect."
+        );
+    }
+
+    if (shouldStartWebsocketForCurrentWake()) {
+        websocketSetup(ws_server, ws_port, ws_path);
+    } else {
+        sleepRequested = true;
     }
   } 
 }

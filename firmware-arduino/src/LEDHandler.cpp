@@ -286,9 +286,11 @@ void staticYellow()
 
 void staticOrange()
 {
-    analogWrite(RED_LED_PIN, 255);
-    analogWrite(GREEN_LED_PIN, 96);
-    analogWrite(BLUE_LED_PIN, 0);
+    // This RGB LED is active-low, so lower PWM values mean more light.
+    // Orange = strong red, some green, blue off.
+    analogWrite(RED_LED_PIN, 0);
+    analogWrite(GREEN_LED_PIN, 159);
+    analogWrite(BLUE_LED_PIN, 255);
 }
 
 void ledTask(void *parameter)

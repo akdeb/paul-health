@@ -85,7 +85,8 @@ declare global {
         | "guess_capital"
         | "conversation_news"
         | "medication_reminder"
-        | "memory_prompt";
+        | "memory_prompt"
+        | "custom";
 
     interface ICareActivity {
         job_id: string;

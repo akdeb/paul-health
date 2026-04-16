@@ -146,6 +146,15 @@ const ACTIVITY_TYPE_OPTIONS: Array<{
     icon: Puzzle,
     bgColor: "bg-emerald-500",
   },
+  {
+    value: "custom",
+    label: "Custom Activity",
+    description: "Create a custom activity for the patient. This activity will be created by the caregiver and you will have additional instructions for the activity.",
+    helperPlaceholder: "e.g. Create a custom activity for the patient.",
+    chipTone: "bg-purple-100 text-purple-800",
+    icon: Puzzle,
+    bgColor: "bg-purple-500",
+},
 ];
 
 export default function CarePlanManager({

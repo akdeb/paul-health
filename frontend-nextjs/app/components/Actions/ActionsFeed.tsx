@@ -37,12 +37,12 @@ const formatTimestamp = (timestamp?: string) => {
   }).format(new Date(timestamp));
 };
 
-const getActionLabel = (type: ActionType) => {
+const getActionLabel = (type: ActionType, jobId: string | null) => {
   switch (type) {
     case "web_chat":
       return "Web chat";
     case "device_chat":
-      return "Device chat";
+      return jobId ? "Scheduled chat" :"Device chat";
     case "device_event":
       return "Device event";
     default:
@@ -75,12 +75,12 @@ const getActionIcon = (type: ActionType) => {
   }
 };
 
-const getActionTagClasses = (type: ActionType) => {
+const getActionTagClasses = (type: ActionType, jobId: string | null) => {
   switch (type) {
     case "web_chat":
       return "bg-blue-500 text-white";
     case "device_chat":
-      return "bg-emerald-500 text-white";
+      return jobId ? "bg-red-500 text-white" : "bg-emerald-500 text-white";
     case "device_event":
       return "bg-amber-500 text-white";
     default:
@@ -189,9 +189,9 @@ export default function ActionsFeed({
                       {getActionTitle(action.type)}
                     </h2>
                     <span
-                      className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${getActionTagClasses(action.type)}`}
+                      className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs font-medium ${getActionTagClasses(action.type, action.job_id)}`}
                     >
-                      {getActionLabel(action.type)}
+                      {getActionLabel(action.type, action.job_id)}
                     </span>
                   </div>
                   <p className="mt-1 text-sm text-gray-500">

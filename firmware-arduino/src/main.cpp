@@ -233,6 +233,7 @@ void setupDeviceMetadata() {
     // quickFactoryResetDevice();
 
     const esp_sleep_wakeup_cause_t wakeCause = esp_sleep_get_wakeup_cause();
+    const bool isTimerWake = wakeCause == ESP_SLEEP_WAKEUP_TIMER;
     deviceState = wakeCause == ESP_SLEEP_WAKEUP_TIMER ? WAITING : IDLE;
 
     loadSessionContextFromNVS();
@@ -240,7 +241,7 @@ void setupDeviceMetadata() {
 
     printStoredSessionContext();
 
-    if (otaState == OTA_IN_PROGRESS) {
+    if (!isTimerWake && otaState == OTA_IN_PROGRESS) {
         deviceState = OTA;
     }
 }
