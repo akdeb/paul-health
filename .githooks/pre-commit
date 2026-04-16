@@ -1,0 +1,32 @@
+#!/bin/sh
+set -eu
+
+ROOT_DIR="$(git rev-parse --show-toplevel)"
+DEST_DIR="$ROOT_DIR/releases/latest"
+BUILD_DIR="$ROOT_DIR/firmware-arduino/.pio/build/esp32-s3-devkitc-1"
+FIRMWARE_SOURCE="$BUILD_DIR/firmware.bin"
+BOOTLOADER_SOURCE="$BUILD_DIR/bootloader.bin"
+PARTITIONS_SOURCE="$BUILD_DIR/partitions.bin"
+BOOT_APP_SOURCE="$HOME/.platformio/packages/framework-arduinoespressif32/tools/partitions/boot_app0.bin"
+
+for source in "$FIRMWARE_SOURCE" "$BOOTLOADER_SOURCE" "$PARTITIONS_SOURCE" "$BOOT_APP_SOURCE"; do
+  if [ ! -f "$source" ]; then
+    echo "[pre-commit] Missing flash artifact: $source" >&2
+    echo "[pre-commit] Run 'platformio run -d firmware-arduino' before committing." >&2
+    exit 1
+  fi
+done
+
+mkdir -p "$DEST_DIR"
+cp "$FIRMWARE_SOURCE" "$DEST_DIR/firmware.bin"
+cp "$BOOTLOADER_SOURCE" "$DEST_DIR/bootloader.bin"
+cp "$PARTITIONS_SOURCE" "$DEST_DIR/partitions.bin"
+cp "$BOOT_APP_SOURCE" "$DEST_DIR/boot_app0.bin"
+
+git add \
+  "$DEST_DIR/firmware.bin" \
+  "$DEST_DIR/bootloader.bin" \
+  "$DEST_DIR/partitions.bin" \
+  "$DEST_DIR/boot_app0.bin"
+
+echo "[pre-commit] Synced releases/latest flash images"
