@@ -4,9 +4,18 @@ from __future__ import annotations
 
 import os
 
+from pipecat.audio.turn.smart_turn.local_smart_turn_v3 import LocalSmartTurnAnalyzerV3
+from pipecat.audio.vad.silero import SileroVADAnalyzer
+from pipecat.audio.vad.vad_analyzer import VADParams
 from pipecat.frames.frames import EndFrame, OutputTransportMessageFrame
 from pipecat.processors.aggregators.llm_context import LLMContext
-from pipecat.processors.aggregators.llm_response_universal import LLMContextAggregatorPair
+from pipecat.processors.aggregators.llm_response_universal import (
+    LLMContextAggregatorPair,
+    LLMUserAggregatorParams,
+)
+from pipecat.turns.user_start import VADUserTurnStartStrategy
+from pipecat.turns.user_stop import TurnAnalyzerUserTurnStopStrategy
+from pipecat.turns.user_turn_strategies import UserTurnStrategies
 
 GEMINI_LIVE_TOOLS = [
     {
@@ -43,6 +52,23 @@ GEMINI_LIVE_TOOLS = [
         ]
     }
 ]
+
+
+def _build_esp32_user_params() -> LLMUserAggregatorParams:
+    return LLMUserAggregatorParams(
+        user_turn_strategies=UserTurnStrategies(
+            start=[VADUserTurnStartStrategy()],
+            stop=[TurnAnalyzerUserTurnStopStrategy(turn_analyzer=LocalSmartTurnAnalyzerV3())],
+        ),
+        vad_analyzer=SileroVADAnalyzer(
+            params=VADParams(
+                confidence=float(os.getenv("PIPECAT_ESP32_VAD_CONFIDENCE", "0.7")),
+                start_secs=float(os.getenv("PIPECAT_ESP32_VAD_START_SECS", "0.2")),
+                stop_secs=float(os.getenv("PIPECAT_ESP32_VAD_STOP_SECS", "0.2")),
+                min_volume=float(os.getenv("PIPECAT_ESP32_VAD_MIN_VOLUME", "0.6")),
+            )
+        ),
+    )
 
 async def _handle_test_function(params) -> None:
     await params.result_callback("ABRACADABRA worked! Say SKADOOSH in return!")
@@ -92,7 +118,10 @@ def build_gem_live_route(
     llm.register_function("test_function", _handle_test_function)
     llm.register_function("end_call", _handle_end_call, cancel_on_interruption=False)
 
-    user_aggregator, assistant_aggregator = LLMContextAggregatorPair(context)
+    user_aggregator, assistant_aggregator = LLMContextAggregatorPair(
+        context,
+        user_params=_build_esp32_user_params(),
+    )
     processors = [
         input_processor,
         user_aggregator,
