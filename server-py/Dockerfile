@@ -19,7 +19,7 @@ RUN pip install --no-cache-dir uv
 COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev
 
-COPY bot.py server.py esp32_transport.py classic_route.py gem_live_route.py session.py app_types.py cache.py ./
+COPY bot.py server.py esp32_transport.py classic_route.py gem_live_route.py session.py prompts.py app_types.py cache.py ./
 
 EXPOSE 7860
 
