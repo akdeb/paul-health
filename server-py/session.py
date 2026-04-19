@@ -221,6 +221,102 @@ def _compose_recent_chat_history(
     return compose_chat_history(recent_items)
 
 
+def _parse_conversation_timestamp(value: Any) -> datetime | None:
+    if not value:
+        return None
+    try:
+        return datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+    except Exception:
+        return None
+
+
+def _get_last_conversation(conversations: list[IConversation]) -> IConversation | None:
+    if not conversations:
+        return None
+    sorted_items = sorted(
+        conversations,
+        key=lambda item: _parse_conversation_timestamp(item.get("created_at")) or datetime.min,
+    )
+    return sorted_items[-1] if sorted_items else None
+
+
+def _hours_since_last_conversation(conversations: list[IConversation]) -> float | None:
+    last_item = _get_last_conversation(conversations)
+    if not last_item:
+        return None
+    last_timestamp = _parse_conversation_timestamp(last_item.get("created_at"))
+    if not last_timestamp:
+        return None
+    return max(0.0, (datetime.now(last_timestamp.tzinfo) - last_timestamp).total_seconds() / 3600.0)
+
+
+def _build_last_topic_hint(conversations: list[IConversation]) -> str:
+    last_item = _get_last_conversation(conversations)
+    if not last_item:
+        return ""
+
+    role = last_item.get("role", "unknown")
+    content = str(last_item.get("content") or "").strip()
+    if not content:
+        return ""
+
+    if len(content) > 220:
+        content = f"{content[:217].rstrip()}..."
+
+    return f"The most recent {role} message was: {content}"
+
+
+def _build_opening_mode_instruction(
+    chat_history: list[IConversation],
+    *,
+    current_job: IJob | None = None,
+) -> str:
+    hours_since_last = _hours_since_last_conversation(chat_history)
+
+    if current_job:
+        return (
+            "OPENING MODE: scheduled activity.\n"
+            "Open directly into the scheduled activity in 1-2 short sentences.\n"
+            "Do not give a generic greeting.\n"
+            "Do not introduce yourself.\n"
+            "Do not explain that you are an AI.\n"
+            "Do not mention internal scheduling.\n"
+            "Be proactive and gently directive: lead the patient into the activity right away."
+        )
+
+    if hours_since_last is not None and hours_since_last <= 2:
+        return (
+            "OPENING MODE: immediate continuation.\n"
+            "Treat this as the conversation resuming, not restarting.\n"
+            "Do not greet, introduce yourself, or explain who you are.\n"
+            "Respond in 1-2 short sentences that continue the thread or nudge the patient into a concrete topic."
+        )
+
+    if hours_since_last is not None and hours_since_last <= 24:
+        return (
+            "OPENING MODE: same-day re-entry.\n"
+            "Re-enter naturally and briefly.\n"
+            "Do not use a stock introduction or AI disclaimer.\n"
+            "Use 1-2 short sentences to pick up a prior topic or confidently suggest the next thing to talk about."
+        )
+
+    if chat_history:
+        return (
+            "OPENING MODE: returning conversation.\n"
+            "Start fresh but not from zero.\n"
+            "Do not repeat the same scripted opening.\n"
+            "Do not introduce yourself unless the patient explicitly asks or is clearly confused.\n"
+            "Use 1-2 short sentences and quickly move into a concrete topic."
+        )
+
+    return (
+        "OPENING MODE: first conversation on this transport.\n"
+        "Start naturally in 1-2 short sentences.\n"
+        "Be warm and grounded, but avoid sounding scripted or over-explanatory.\n"
+        "Do not volunteer an AI disclaimer unless directly asked."
+    )
+
+
 def create_first_message(
     user: dict[str, Any],
     chat_history: list[IConversation],
@@ -230,6 +326,16 @@ def create_first_message(
     base_prompt = (user.get("personality") or {}).get("first_message_prompt", "") or ""
     history_label = "device chat history" if action_type == "device_chat" else "web chat history"
     recent_chat_history = _compose_recent_chat_history(chat_history)
+    last_topic_hint = _build_last_topic_hint(chat_history)
+    opening_mode_instruction = _build_opening_mode_instruction(
+        chat_history,
+        current_job=current_job,
+    )
+
+    style_guidance = (
+        "Use the personality's first_message_prompt only as tone/style guidance. "
+        "It is not a script and must not be repeated verbatim across sessions."
+    )
 
     if current_job:
         job_summary = {
@@ -241,18 +347,10 @@ def create_first_message(
         return "\n\n".join(
             part
             for part in [
-                base_prompt,
-                (
-                    "This session was triggered by a scheduled activity. "
-                    "Open naturally around the scheduled activity below. "
-                    "Do not give a generic greeting and do not mention internal scheduling."
-                ),
-                (
-                    "If the recent chat history is relevant, continue from it naturally instead of restarting the relationship. "
-                    "Do not re-introduce yourself unless the patient is clearly confused or asks who you are."
-                )
-                if recent_chat_history
-                else "",
+                opening_mode_instruction,
+                style_guidance,
+                f"STYLE GUIDANCE:\n{base_prompt}" if base_prompt else "",
+                last_topic_hint,
                 f"THIS IS THE MOST RECENT {history_label.upper()} CONTEXT:\n{recent_chat_history}"
                 if recent_chat_history
                 else "",
@@ -265,16 +363,10 @@ def create_first_message(
         return "\n\n".join(
             part
             for part in [
-                (
-                    "Continue the conversation naturally from the recent chat history below. "
-                    "Respond to what was already being discussed. "
-                    "Do not restart with the same stock introduction, and do not re-introduce yourself unless the patient is clearly confused or explicitly asks."
-                ),
-                (
-                    "Use the personality's first message prompt only as style guidance for warmth, tone, and pacing. "
-                    "It is not a script to repeat when there is existing history."
-                ),
-                base_prompt,
+                opening_mode_instruction,
+                style_guidance,
+                f"STYLE GUIDANCE:\n{base_prompt}" if base_prompt else "",
+                last_topic_hint,
                 f"THIS IS THE MOST RECENT {history_label.upper()} CONTEXT:\n{recent_chat_history}",
             ]
             if part
@@ -283,11 +375,9 @@ def create_first_message(
     return "\n\n".join(
         part
         for part in [
-            base_prompt,
-            (
-                "There is no recent chat history for this transport. "
-                "Treat this as a genuine opening and start naturally without sounding repetitive or over-rehearsed."
-            ),
+            opening_mode_instruction,
+            style_guidance,
+            f"STYLE GUIDANCE:\n{base_prompt}" if base_prompt else "",
         ]
         if part
     )
@@ -403,7 +493,10 @@ def create_system_prompt(
                 "If there is chat history, continue from it naturally.\n"
                 "Do not keep restarting the relationship.\n"
                 "Do not repeat the same generic opening line every session.\n"
-                "Use the recent transcript to decide whether to follow up, acknowledge, continue a topic, or gently re-engage."
+                "Do not keep repeating your name, what you are, or that you are an AI unless the patient explicitly asks or is clearly confused.\n"
+                "For returning chats, use the recent transcript to decide whether to follow up, acknowledge, continue a topic, or gently re-engage.\n"
+                "For scheduled chats, open directly into the activity in 1-2 short sentences without a generic preamble.\n"
+                "Be proactive and gently nudging rather than passive. Offer a concrete next direction instead of broad generic chatter."
             ),
             _format_context_block(
                 "THIS IS THE CURRENT SCHEDULED ACTIVITY (JOB CONTEXT):",
