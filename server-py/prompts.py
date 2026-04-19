@@ -71,6 +71,9 @@ def _build_engine_state(
     prior_action_count: int,
     chat_history: list[IConversation],
 ) -> dict[str, Any]:
+    if prior_action_count == 0 and not chat_history:
+        return {"active": True, "stage": "first_contact"}
+
     onboarding_days = int(os.getenv("PAUL_ONBOARDING_DAYS", "3"))
     onboarding_session_cap = int(os.getenv("PAUL_ONBOARDING_SESSION_CAP", "8"))
     created_at = _parse_user_timestamp(user.get("created_at"))
@@ -85,9 +88,7 @@ def _build_engine_state(
     if not active:
         return {"active": False, "stage": "normal"}
 
-    if prior_action_count == 0 and not chat_history:
-        stage = "first_contact"
-    elif prior_action_count <= 2:
+    if prior_action_count <= 2:
         stage = "expectation_setting"
     else:
         stage = "light_context_building"
@@ -206,6 +207,37 @@ def _build_onboarding_stage_guidance(engine_state: dict[str, Any]) -> str:
     return ""
 
 
+def _build_first_contact_script(user: dict[str, Any]) -> str:
+    patient = user.get("patient") or {}
+    patient_name = patient.get("name") or "there"
+    return "\n".join(
+        [
+            "THIS IS THE VERY FIRST INTERACTION EVER ON THIS TRANSPORT.",
+            "Your first response should closely follow this structure and should not improvise a totally different opener.",
+            "Keep the tone direct, warm, grounded, and natural.",
+            "Do not sound corporate, childish, or over-excited.",
+            "Use short sentences.",
+            "Write the opening as natural spoken dialogue, not as commentary about what you will do.",
+            "",
+            "FIRST RESPONSE PLAN:",
+            f'1. Say: "Hey {patient_name}. I\'m Paul."',
+            '2. Say that you are going to be around from now on as a bit of company, and that you can chat, tell them things, remind them of stuff, or just be there if they want someone to talk to.',
+            '3. Say clearly and honestly that you are not a real person and that you are an AI.',
+            '4. Say that you can listen, understand, and have a proper conversation, and that they should give you a chance and see how it goes.',
+            '5. Briefly set expectations: you will check in during the day, might suggest things to talk about, might remind them about things, and they can just start talking whenever they want.',
+            '6. Acknowledge that talking to a device can feel a bit strange at first, and that there is no pressure.',
+            '7. Then move into one simple trust-building question, such as what people usually call them.',
+            "",
+            "IMPORTANT:",
+            "Do not compress this into a vague one-liner.",
+            "Do not skip the AI honesty bit.",
+            "Do not ask multiple personal questions at once.",
+            "Do not go into a scheduled activity here unless one is explicitly attached.",
+            'Do not start with generic lines like "How\'s it going" or "I\'m here if you fancy a chat."',
+        ]
+    )
+
+
 def _build_personality_context(personality: dict[str, Any] | None) -> dict[str, Any] | None:
     if not personality:
         return None
@@ -308,6 +340,7 @@ def create_first_message(
     )
     early_days_guidance = _build_onboarding_guidance(engine_state)
     early_days_stage_guidance = _build_onboarding_stage_guidance(engine_state)
+    first_contact_script = _build_first_contact_script(user)
 
     if current_job:
         job_summary = {
@@ -348,6 +381,19 @@ def create_first_message(
                 f"STYLE GUIDANCE:\n{base_prompt}" if base_prompt else "",
                 last_topic_hint,
                 f"THIS IS THE MOST RECENT {history_label.upper()} CONTEXT:\n{recent_chat_history}",
+            ]
+            if part
+        )
+
+    if engine_state["stage"] == "first_contact":
+        return "\n\n".join(
+            part
+            for part in [
+                style_guidance,
+                early_days_guidance,
+                early_days_stage_guidance,
+                first_contact_script,
+                f"STYLE GUIDANCE:\n{base_prompt}" if base_prompt else "",
             ]
             if part
         )
@@ -398,6 +444,16 @@ def create_system_prompt(
         "EARLY DAYS CONVERSATION MODE:\n"
         "Normal conversation mode is active. The dedicated early-days period has ended."
     )
+    first_contact_section = (
+        "FIRST CONTACT REQUIREMENT:\n"
+        "If there is no conversation history and this is the first contact stage, your first reply should explicitly introduce Paul, honestly say that he is an AI, set expectations about check-ins and reminders, acknowledge the weirdness, and then ask one simple trust-building question.\n"
+        "Do not replace this with a vague greeting.\n"
+        "Do not omit the AI honesty bit.\n"
+        "Do not collapse it into a single sentence."
+    ) if engine_state["stage"] == "first_contact" else (
+        "FIRST CONTACT REQUIREMENT:\n"
+        "This is not the very first interaction, so do not fall back to a generic intro."
+    )
 
     return "\n\n".join(
         [
@@ -428,6 +484,7 @@ def create_system_prompt(
                 "Be proactive and gently nudging rather than passive. Offer a concrete next direction instead of broad generic chatter."
             ),
             early_days_section,
+            first_contact_section,
             _format_context_block(
                 "THIS IS THE CURRENT SCHEDULED ACTIVITY (JOB CONTEXT):",
                 current_job,
