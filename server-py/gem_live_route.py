@@ -80,6 +80,8 @@ def build_gem_live_route(
     personality = session.user.get("personality") or {}
     voice = personality.get("voice") or os.getenv("GEMINI_LIVE_VOICE", "Schedar")
     model = os.getenv("GEMINI_LIVE_MODEL", "models/gemini-2.5-flash-native-audio-preview-12-2025")
+    vad_silence_duration_ms = int(os.getenv("GEMINI_LIVE_VAD_SILENCE_MS", "900"))
+    vad_prefix_padding_ms = int(os.getenv("GEMINI_LIVE_VAD_PREFIX_PADDING_MS", "200"))
 
     llm = GeminiLiveLLMService(
         api_key=api_key,
@@ -91,6 +93,8 @@ def build_gem_live_route(
             system_instruction=session.system_prompt,
             vad=GeminiVADParams(
                 disabled=False,
+                silence_duration_ms=vad_silence_duration_ms,
+                prefix_padding_ms=vad_prefix_padding_ms,
             ),
         ),
     )
