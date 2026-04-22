@@ -4,23 +4,9 @@ from __future__ import annotations
 
 import os
 
-from pipecat.audio.vad.silero import SileroVADAnalyzer
-from pipecat.audio.vad.vad_analyzer import VADParams
-from pipecat.frames.frames import (
-    EndFrame,
-    Frame,
-    OutputTransportMessageFrame,
-    UserStartedSpeakingFrame,
-    UserStoppedSpeakingFrame,
-    VADUserStartedSpeakingFrame,
-    VADUserStoppedSpeakingFrame,
-)
+from pipecat.frames.frames import EndFrame, OutputTransportMessageFrame
 from pipecat.processors.aggregators.llm_context import LLMContext
-from pipecat.processors.aggregators.llm_response_universal import (
-    LLMContextAggregatorPair,
-    LLMUserAggregatorParams,
-)
-from pipecat.processors.frame_processor import FrameDirection, FrameProcessor
+from pipecat.processors.aggregators.llm_response_universal import LLMContextAggregatorPair
 
 GEMINI_LIVE_TOOLS = [
     {
@@ -57,21 +43,6 @@ GEMINI_LIVE_TOOLS = [
         ]
     }
 ]
-
-
-class GeminiTurnBoundaryProcessor(FrameProcessor):
-    """Bridge generic user turn frames into explicit Gemini VAD boundary frames."""
-
-    async def process_frame(self, frame: Frame, direction: FrameDirection):
-        await super().process_frame(frame, direction)
-
-        if direction is FrameDirection.DOWNSTREAM:
-            if isinstance(frame, UserStartedSpeakingFrame):
-                await self.push_frame(VADUserStartedSpeakingFrame(), direction)
-            elif isinstance(frame, UserStoppedSpeakingFrame):
-                await self.push_frame(VADUserStoppedSpeakingFrame(), direction)
-
-        await self.push_frame(frame, direction)
 
 
 async def _handle_test_function(params) -> None:
@@ -118,31 +89,19 @@ def build_gem_live_route(
             model=model,
             voice=voice,
             system_instruction=session.system_prompt,
-            vad=GeminiVADParams(disabled=True),
+            vad=GeminiVADParams(
+                disabled=False,
+            ),
         ),
     )
     llm.register_function("test_function", _handle_test_function)
     llm.register_function("end_call", _handle_end_call, cancel_on_interruption=False)
 
-    user_aggregator, assistant_aggregator = LLMContextAggregatorPair(
-        context,
-        user_params=LLMUserAggregatorParams(
-            vad_analyzer=SileroVADAnalyzer(
-                params=VADParams(
-                    confidence=float(os.getenv("GEM_LIVE_VAD_CONFIDENCE", "0.6")),
-                    start_secs=float(os.getenv("GEM_LIVE_VAD_START_SECS", "0.1")),
-                    stop_secs=float(os.getenv("GEM_LIVE_VAD_STOP_SECS", "0.5")),
-                    min_volume=float(os.getenv("GEM_LIVE_VAD_MIN_VOLUME", "0.45")),
-                )
-            )
-        ),
-    )
-    turn_boundary_processor = GeminiTurnBoundaryProcessor()
+    user_aggregator, assistant_aggregator = LLMContextAggregatorPair(context)
 
     processors = [
         input_processor,
         user_aggregator,
-        turn_boundary_processor,
     ]
     if pre_llm_processor is not None:
         processors.append(pre_llm_processor)
