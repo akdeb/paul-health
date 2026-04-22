@@ -57,7 +57,6 @@ logger.info("All components loaded successfully")
 load_dotenv(override=True)
 CURRENT_VOICE_ROUTE = os.getenv("CURRENT_VOICE_ROUTE", "classic").strip().lower()
 LISTENING_IDLE_TIMEOUT_SECONDS = float(os.getenv("LISTENING_IDLE_TIMEOUT_SECONDS", "20.0"))
-RESPONSE_START_TIMEOUT_SECONDS = float(os.getenv("RESPONSE_START_TIMEOUT_SECONDS", "8.0"))
 
 
 class RealtimeInputControlProcessor(FrameProcessor):
@@ -77,7 +76,7 @@ class RealtimeInputControlProcessor(FrameProcessor):
 
             if msg_type == "instruction" and msg == "end_of_speech":
                 if self._voice_route == "gem_live":
-                    await self.push_frame(VADUserStoppedSpeakingFrame(), FrameDirection.DOWNSTREAM)
+                    return
                 else:
                     await self.push_frame(
                         EmulateUserStoppedSpeakingFrame(), FrameDirection.DOWNSTREAM
@@ -146,85 +145,6 @@ class RealtimeOutputControlProcessor(FrameProcessor):
                     OutputTransportMessageFrame(message={"type": "server", "msg": "RESPONSE.ERROR"}),
                     direction,
                 )
-            elif isinstance(frame, InterruptionFrame) and not self._response_started:
-                logger.debug(
-                    "Gemini interruption happened before any output audio; resetting client state"
-                )
-                await self.push_frame(STTMuteFrame(mute=False), direction)
-                await self.push_frame(
-                    OutputTransportMessageFrame(message={"type": "server", "msg": "RESPONSE.ERROR"}),
-                    direction,
-                )
-
-        await self.push_frame(frame, direction)
-
-
-class ResponseStartWatchdogProcessor(FrameProcessor):
-    """Break the stuck-processing state if a user turn is committed but no response begins."""
-
-    def __init__(self, timeout_seconds: float = 8.0):
-        super().__init__()
-        self._timeout_seconds = timeout_seconds
-        self._watchdog_task: asyncio.Task | None = None
-        self._awaiting_response = False
-
-    async def _cancel_watchdog(self) -> None:
-        if self._watchdog_task and not self._watchdog_task.done():
-            self._watchdog_task.cancel()
-            try:
-                await self._watchdog_task
-            except asyncio.CancelledError:
-                pass
-        self._watchdog_task = None
-
-    def _arm_watchdog(self) -> None:
-        if self._watchdog_task and not self._watchdog_task.done():
-            self._watchdog_task.cancel()
-
-        async def _timeout() -> None:
-            try:
-                await asyncio.sleep(self._timeout_seconds)
-                if not self._awaiting_response:
-                    return
-                logger.warning(
-                    "Response start watchdog fired after {:.1f}s without output audio",
-                    self._timeout_seconds,
-                )
-                self._awaiting_response = False
-                await self.push_frame(STTMuteFrame(mute=False), FrameDirection.DOWNSTREAM)
-                await self.push_frame(
-                    OutputTransportMessageFrame(
-                        message={"type": "server", "msg": "RESPONSE.ERROR"}
-                    ),
-                    FrameDirection.DOWNSTREAM,
-                )
-            except asyncio.CancelledError:
-                raise
-
-        self._watchdog_task = self.create_task(_timeout())
-
-    async def process_frame(self, frame: Frame, direction: FrameDirection):
-        await super().process_frame(frame, direction)
-
-        if direction is FrameDirection.DOWNSTREAM:
-            if isinstance(frame, (UserStoppedSpeakingFrame, VADUserStoppedSpeakingFrame)):
-                self._awaiting_response = True
-                self._arm_watchdog()
-            elif isinstance(frame, (OutputAudioRawFrame, BotStartedSpeakingFrame)):
-                self._awaiting_response = False
-                await self._cancel_watchdog()
-            elif isinstance(
-                frame,
-                (
-                    TTSStoppedFrame,
-                    BotStoppedSpeakingFrame,
-                    ErrorFrame,
-                    EndFrame,
-                    InterruptionFrame,
-                ),
-            ):
-                self._awaiting_response = False
-                await self._cancel_watchdog()
 
         await self.push_frame(frame, direction)
 
@@ -388,9 +308,6 @@ async def run_bot_session(
         timeout_seconds=LISTENING_IDLE_TIMEOUT_SECONDS,
         arm_on_start=not session.first_message.strip(),
     )
-    response_watchdog = ResponseStartWatchdogProcessor(
-        timeout_seconds=RESPONSE_START_TIMEOUT_SECONDS,
-    )
     processors = [transport.input(), *route_processors]
     if voice_route != "gem_live":
         processors.append(user_persistence)
@@ -398,7 +315,6 @@ async def run_bot_session(
 
     if transport_kind in {"esp32", "browser"}:
         processors.append(RealtimeOutputControlProcessor(session))
-        processors.append(response_watchdog)
         processors.append(idle_timeout)
     processors.append(transport.output())
     processors.append(assistant_aggregator)
