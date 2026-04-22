@@ -146,6 +146,15 @@ class RealtimeOutputControlProcessor(FrameProcessor):
                     OutputTransportMessageFrame(message={"type": "server", "msg": "RESPONSE.ERROR"}),
                     direction,
                 )
+            elif isinstance(frame, InterruptionFrame) and not self._response_started:
+                logger.debug(
+                    "Gemini interruption happened before any output audio; resetting client state"
+                )
+                await self.push_frame(STTMuteFrame(mute=False), direction)
+                await self.push_frame(
+                    OutputTransportMessageFrame(message={"type": "server", "msg": "RESPONSE.ERROR"}),
+                    direction,
+                )
 
         await self.push_frame(frame, direction)
 
