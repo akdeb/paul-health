@@ -6,7 +6,11 @@ import os
 
 from pipecat.frames.frames import EndFrame, OutputTransportMessageFrame
 from pipecat.processors.aggregators.llm_context import LLMContext
-from pipecat.processors.aggregators.llm_response_universal import LLMContextAggregatorPair
+from pipecat.processors.aggregators.llm_response_universal import (
+    LLMContextAggregatorPair,
+    LLMUserAggregatorParams,
+)
+from pipecat.turns.user_turn_strategies import ExternalUserTurnStrategies
 
 GEMINI_LIVE_TOOLS = [
     {
@@ -67,7 +71,7 @@ def build_gem_live_route(
 ):
     try:
         from pipecat.services.google.gemini_live import GeminiLiveLLMService
-        from pipecat.services.google.gemini_live.llm import GeminiVADParams
+        from pipecat.services.google.gemini_live.llm import EndSensitivity, GeminiVADParams
     except Exception as exc:
         raise RuntimeError(
             "Gemini Live route requires pipecat-ai[google]. Add the google extra and redeploy."
@@ -93,6 +97,7 @@ def build_gem_live_route(
             system_instruction=session.system_prompt,
             vad=GeminiVADParams(
                 disabled=False,
+                end_sensitivity=EndSensitivity.END_SENSITIVITY_LOW,
                 silence_duration_ms=vad_silence_duration_ms,
                 prefix_padding_ms=vad_prefix_padding_ms,
             ),
@@ -101,7 +106,13 @@ def build_gem_live_route(
     llm.register_function("test_function", _handle_test_function)
     llm.register_function("end_call", _handle_end_call, cancel_on_interruption=False)
 
-    user_aggregator, assistant_aggregator = LLMContextAggregatorPair(context)
+    user_aggregator, assistant_aggregator = LLMContextAggregatorPair(
+        context,
+        user_params=LLMUserAggregatorParams(
+            user_turn_strategies=ExternalUserTurnStrategies(),
+            filter_incomplete_user_turns=True,
+        ),
+    )
 
     processors = [
         input_processor,
