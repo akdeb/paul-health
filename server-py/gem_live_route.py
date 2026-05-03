@@ -55,6 +55,12 @@ GEMINI_LIVE_TOOLS = [
 ]
 
 
+def _build_gemini_live_tools(session) -> list[dict]:
+    tools = list(GEMINI_LIVE_TOOLS)
+    tools.append({"googleSearch": {}})
+    return tools
+
+
 async def _handle_test_function(params) -> None:
     await params.result_callback("ABRACADABRA worked! Say SKADOOSH in return!")
 
@@ -99,7 +105,7 @@ def build_gem_live_route(
     llm = GeminiLiveLLMService(
         api_key=api_key,
         inference_on_context_initialization=True,
-        tools=GEMINI_LIVE_TOOLS,
+        tools=_build_gemini_live_tools(session),
         settings=GeminiLiveLLMService.Settings(
             model=model,
             voice=voice,
