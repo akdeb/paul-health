@@ -357,27 +357,8 @@ def _build_scheduled_job_first_turn(
     *,
     recent_chat_history: str,
 ) -> str:
-    job_type = current_job.get("type") or "unknown"
     title = current_job.get("title") or ""
     instructions = (current_job.get("instructions") or "").strip()
-
-    if job_type == "conversation_news":
-        patient = user.get("patient") or {}
-        location = patient.get("address") or patient.get("timezone") or "the patient's local area"
-        parts = [
-            "Start the scheduled local news conversation now.",
-            f"Use Google Search and talk about current local news in {location}.",
-            "Lead with one short local item, then ask one short follow-up question.",
-            "Keep it light and conversational.",
-            "Do not give a generic greeting.",
-        ]
-        if title:
-            parts.append(f"Title: {title}.")
-        if instructions:
-            parts.append(f"Instructions: {instructions}")
-        if recent_chat_history:
-            parts.append("If relevant, keep continuity with the recent conversation without sounding scripted.")
-        return " ".join(parts)
 
     parts = [
         "Start the scheduled activity now.",
