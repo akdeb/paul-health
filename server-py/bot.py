@@ -40,7 +40,6 @@ from pipecat.frames.frames import (
     StartFrame,
     STTMuteFrame,
     TranscriptionFrame,
-    TTSStartedFrame,
     TTSStoppedFrame,
     TTSTextFrame,
     UserStoppedSpeakingFrame,
@@ -101,9 +100,6 @@ class RealtimeOutputControlProcessor(FrameProcessor):
         super().__init__()
         self._session = session
         self._response_started = False
-        self._use_early_response_created = (
-            (session.current_job or {}).get("type") == "conversation_news"
-        )
 
     async def _send_response_created(self, direction: FrameDirection, log_message: str):
         if self._response_started:
@@ -135,15 +131,6 @@ class RealtimeOutputControlProcessor(FrameProcessor):
                 await self.push_frame(
                     OutputTransportMessageFrame(message={"type": "server", "msg": "AUDIO.COMMITTED"}),
                     direction,
-                )
-            elif (
-                self._use_early_response_created
-                and isinstance(frame, TTSStartedFrame)
-                and not self._response_started
-            ):
-                await self._send_response_created(
-                    direction,
-                    "Sending RESPONSE.CREATED on TTSStartedFrame for scheduled news job",
                 )
             elif isinstance(frame, OutputAudioRawFrame) and not self._response_started:
                 await self._send_response_created(

@@ -57,7 +57,7 @@ GEMINI_LIVE_TOOLS = [
 
 def _build_gemini_live_tools() -> list[dict]:
     tools = list(GEMINI_LIVE_TOOLS)
-    tools.append({"googleSearch": {}})
+    tools.append({"google_search": {}})
     return tools
 
 
