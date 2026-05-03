@@ -13,7 +13,9 @@ from pipecat.processors.aggregators.llm_response_universal import (
     LLMUserAggregatorParams,
 )
 from pipecat.turns.user_start.vad_user_turn_start_strategy import VADUserTurnStartStrategy
-from pipecat.turns.user_stop.external_user_turn_stop_strategy import ExternalUserTurnStopStrategy
+from pipecat.turns.user_stop.speech_timeout_user_turn_stop_strategy import (
+    SpeechTimeoutUserTurnStopStrategy,
+)
 from pipecat.turns.user_turn_strategies import UserTurnStrategies
 
 GEMINI_LIVE_TOOLS = [
@@ -89,10 +91,10 @@ def build_gem_live_route(
     voice = personality.get("voice") or os.getenv("GEMINI_LIVE_VOICE", "Schedar")
     model = os.getenv("GEMINI_LIVE_MODEL", "models/gemini-2.5-flash-native-audio-preview-12-2025")
     start_vad_confidence = float(os.getenv("GEMINI_LIVE_START_VAD_CONFIDENCE", "0.65"))
-    start_vad_start_secs = float(os.getenv("GEMINI_LIVE_START_VAD_START_SECS", "0.15"))
-    start_vad_stop_secs = float(os.getenv("GEMINI_LIVE_START_VAD_STOP_SECS", "0.5"))
-    start_vad_min_volume = float(os.getenv("GEMINI_LIVE_START_VAD_MIN_VOLUME", "0.5"))
-    external_stop_timeout = float(os.getenv("GEMINI_LIVE_EXTERNAL_STOP_TIMEOUT", "0.75"))
+    start_vad_start_secs = float(os.getenv("GEMINI_LIVE_START_VAD_START_SECS", "0.2"))
+    start_vad_stop_secs = float(os.getenv("GEMINI_LIVE_START_VAD_STOP_SECS", "0.9"))
+    start_vad_min_volume = float(os.getenv("GEMINI_LIVE_START_VAD_MIN_VOLUME", "0.45"))
+    speech_timeout = float(os.getenv("GEMINI_LIVE_USER_SPEECH_TIMEOUT", "0.8"))
 
     llm = GeminiLiveLLMService(
         api_key=api_key,
@@ -115,7 +117,7 @@ def build_gem_live_route(
         user_params=LLMUserAggregatorParams(
             user_turn_strategies=UserTurnStrategies(
                 start=[VADUserTurnStartStrategy()],
-                stop=[ExternalUserTurnStopStrategy(timeout=external_stop_timeout)],
+                stop=[SpeechTimeoutUserTurnStopStrategy(user_speech_timeout=speech_timeout)],
             ),
             vad_analyzer=SileroVADAnalyzer(
                 params=VADParams(
