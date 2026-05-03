@@ -33,7 +33,6 @@ from pipecat.frames.frames import (
     InputTransportMessageFrame,
     InterruptionFrame,
     LLMContextFrame,
-    LLMFullResponseStartFrame,
     LLMFullResponseEndFrame,
     LLMRunFrame,
     OutputAudioRawFrame,
@@ -41,7 +40,6 @@ from pipecat.frames.frames import (
     StartFrame,
     STTMuteFrame,
     TranscriptionFrame,
-    TTSStartedFrame,
     TTSStoppedFrame,
     TTSTextFrame,
     UserStoppedSpeakingFrame,
@@ -103,29 +101,6 @@ class RealtimeOutputControlProcessor(FrameProcessor):
         self._session = session
         self._response_started = False
 
-    async def _emit_response_created(self, direction: FrameDirection):
-        if self._response_started:
-            return
-
-        self._response_started = True
-        logger.debug("Sending RESPONSE.CREATED at response lifecycle start")
-        await self.push_frame(STTMuteFrame(mute=True), direction)
-
-        latest_device = get_device_info(
-            self._session.supabase,
-            self._session.user["user_id"],
-        )
-        response_created_message = {
-            "type": "server",
-            "msg": "RESPONSE.CREATED",
-        }
-        if latest_device and latest_device.get("volume") is not None:
-            response_created_message["volume_control"] = latest_device["volume"]
-        await self.push_frame(
-            OutputTransportMessageFrame(message=response_created_message),
-            direction,
-        )
-
     async def process_frame(self, frame: Frame, direction: FrameDirection):
         await super().process_frame(frame, direction)
 
@@ -135,17 +110,24 @@ class RealtimeOutputControlProcessor(FrameProcessor):
                     OutputTransportMessageFrame(message={"type": "server", "msg": "AUDIO.COMMITTED"}),
                     direction,
                 )
-            elif isinstance(
-                frame,
-                (
-                    LLMFullResponseStartFrame,
-                    TTSStartedFrame,
-                    TTSTextFrame,
-                    BotStartedSpeakingFrame,
-                    OutputAudioRawFrame,
-                ),
-            ):
-                await self._emit_response_created(direction)
+            elif isinstance(frame, OutputAudioRawFrame) and not self._response_started:
+                self._response_started = True
+                logger.debug("Sending RESPONSE.CREATED before first audio packet")
+                await self.push_frame(STTMuteFrame(mute=True), direction)
+                latest_device = get_device_info(
+                    self._session.supabase,
+                    self._session.user["user_id"],
+                )
+                response_created_message = {
+                    "type": "server",
+                    "msg": "RESPONSE.CREATED",
+                }
+                if latest_device and latest_device.get("volume") is not None:
+                    response_created_message["volume_control"] = latest_device["volume"]
+                await self.push_frame(
+                    OutputTransportMessageFrame(message=response_created_message),
+                    direction,
+                )
             elif isinstance(frame, (TTSStoppedFrame, BotStoppedSpeakingFrame)):
                 self._response_started = False
                 logger.debug("Sending RESPONSE.COMPLETE after TTS stop")

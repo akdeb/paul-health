@@ -313,22 +313,6 @@ def _format_context_block(title: str, value: Any) -> str:
     return f"{title}\n{json.dumps(value, indent=2)}"
 
 
-def _build_news_grounding_instruction(user: dict[str, Any], current_job: IJob | None) -> str:
-    if not current_job or current_job.get("type") != "conversation_news":
-        return ""
-
-    patient = user.get("patient") or {}
-    location = patient.get("address") or patient.get("timezone") or "the patient's local area"
-    return (
-        "LOCAL NEWS GROUNDING:\n"
-        f"This is a scheduled local news conversation for {location}.\n"
-        "Use Google Search grounding for this turn so the news is current and locally relevant.\n"
-        "Prefer lightweight local topics such as weather impacts, community events, transport, culture, sports, or non-distressing headlines.\n"
-        "Avoid alarming or graphic stories unless the caregiver instructions explicitly ask for them.\n"
-        "Open by briefly mentioning one current local news item and then ask one short follow-up question."
-    )
-
-
 def create_first_message(
     user: dict[str, Any],
     chat_history: list[IConversation],
@@ -357,8 +341,6 @@ def create_first_message(
     early_days_guidance = _build_onboarding_guidance(engine_state)
     early_days_stage_guidance = _build_onboarding_stage_guidance(engine_state)
     first_contact_script = _build_first_contact_script(user)
-    news_grounding_instruction = _build_news_grounding_instruction(user, current_job)
-
     if current_job:
         job_summary = {
             "job_id": current_job.get("job_id"),
@@ -377,7 +359,6 @@ def create_first_message(
                     "For a scheduled activity, keep the opening especially short and lead with the activity. "
                     "If early-days guidance is active, do not run a separate intro here."
                 ),
-                news_grounding_instruction,
                 f"STYLE GUIDANCE:\n{base_prompt}" if base_prompt else "",
                 last_topic_hint,
                 f"THIS IS THE MOST RECENT {history_label.upper()} CONTEXT:\n{recent_chat_history}"
@@ -472,8 +453,6 @@ def create_system_prompt(
         "FIRST CONTACT REQUIREMENT:\n"
         "This is not the very first interaction, so do not fall back to a generic intro."
     )
-    news_grounding_section = _build_news_grounding_instruction(user, current_job)
-
     return "\n\n".join(
         [
             _format_context_block(
@@ -504,7 +483,6 @@ def create_system_prompt(
             ),
             early_days_section,
             first_contact_section,
-            news_grounding_section,
             _format_context_block(
                 "THIS IS THE CURRENT SCHEDULED ACTIVITY (JOB CONTEXT):",
                 current_job,

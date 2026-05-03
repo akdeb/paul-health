@@ -55,7 +55,7 @@ GEMINI_LIVE_TOOLS = [
 ]
 
 
-def _build_gemini_live_tools(session) -> list[dict]:
+def _build_gemini_live_tools() -> list[dict]:
     tools = list(GEMINI_LIVE_TOOLS)
     tools.append({"googleSearch": {}})
     return tools
@@ -105,7 +105,7 @@ def build_gem_live_route(
     llm = GeminiLiveLLMService(
         api_key=api_key,
         inference_on_context_initialization=True,
-        tools=_build_gemini_live_tools(session),
+        tools=_build_gemini_live_tools(),
         settings=GeminiLiveLLMService.Settings(
             model=model,
             voice=voice,
