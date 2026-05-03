@@ -317,27 +317,8 @@ def _build_scheduled_job_system_guidance(user: IUser, current_job: IJob | None) 
     if not current_job:
         return ""
 
-    job_type = current_job.get("type") or "unknown"
     title = current_job.get("title") or ""
     instructions = (current_job.get("instructions") or "").strip()
-
-    if job_type == "conversation_news":
-        patient = user.get("patient") or {}
-        location = patient.get("address") or patient.get("timezone") or "the patient's local area"
-        parts = [
-            "SCHEDULED NEWS CONVERSATION GUIDANCE:",
-            f"This scheduled activity is a local news conversation for {location}.",
-            "Use the Google Search tool for this job so the news is current and locally relevant.",
-            "Prefer lightweight local stories such as community events, transport, culture, sports, or weather-related local updates.",
-            "Avoid alarming, graphic, or distressing stories unless the instructions explicitly ask for them.",
-            "Open directly with one short current local item, then ask one short follow-up question.",
-            "Do not give a generic greeting or restart the relationship.",
-        ]
-        if title:
-            parts.append(f"Job title: {title}.")
-        if instructions:
-            parts.append(f"Job-specific instructions: {instructions}")
-        return "\n".join(parts)
 
     parts = [
         "SCHEDULED ACTIVITY GUIDANCE:",
