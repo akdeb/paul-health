@@ -313,6 +313,86 @@ def _format_context_block(title: str, value: Any) -> str:
     return f"{title}\n{json.dumps(value, indent=2)}"
 
 
+def _build_scheduled_job_system_guidance(user: IUser, current_job: IJob | None) -> str:
+    if not current_job:
+        return ""
+
+    job_type = current_job.get("type") or "unknown"
+    title = current_job.get("title") or ""
+    instructions = (current_job.get("instructions") or "").strip()
+
+    if job_type == "conversation_news":
+        patient = user.get("patient") or {}
+        location = patient.get("address") or patient.get("timezone") or "the patient's local area"
+        parts = [
+            "SCHEDULED NEWS CONVERSATION GUIDANCE:",
+            f"This scheduled activity is a local news conversation for {location}.",
+            "Use the Google Search tool for this job so the news is current and locally relevant.",
+            "Prefer lightweight local stories such as community events, transport, culture, sports, or weather-related local updates.",
+            "Avoid alarming, graphic, or distressing stories unless the instructions explicitly ask for them.",
+            "Open directly with one short current local item, then ask one short follow-up question.",
+            "Do not give a generic greeting or restart the relationship.",
+        ]
+        if title:
+            parts.append(f"Job title: {title}.")
+        if instructions:
+            parts.append(f"Job-specific instructions: {instructions}")
+        return "\n".join(parts)
+
+    parts = [
+        "SCHEDULED ACTIVITY GUIDANCE:",
+        "This is a scheduled activity. Lead directly into it in 1-2 short sentences.",
+        "Do not give a generic greeting or restart the relationship.",
+    ]
+    if title:
+        parts.append(f"Job title: {title}.")
+    if instructions:
+        parts.append(f"Job-specific instructions: {instructions}")
+    return "\n".join(parts)
+
+
+def _build_scheduled_job_first_turn(
+    user: IUser,
+    current_job: IJob,
+    *,
+    recent_chat_history: str,
+) -> str:
+    job_type = current_job.get("type") or "unknown"
+    title = current_job.get("title") or ""
+    instructions = (current_job.get("instructions") or "").strip()
+
+    if job_type == "conversation_news":
+        patient = user.get("patient") or {}
+        location = patient.get("address") or patient.get("timezone") or "the patient's local area"
+        parts = [
+            "Start the scheduled local news conversation now.",
+            f"Use Google Search and talk about current local news in {location}.",
+            "Lead with one short local item, then ask one short follow-up question.",
+            "Keep it light and conversational.",
+            "Do not give a generic greeting.",
+        ]
+        if title:
+            parts.append(f"Title: {title}.")
+        if instructions:
+            parts.append(f"Instructions: {instructions}")
+        if recent_chat_history:
+            parts.append("If relevant, keep continuity with the recent conversation without sounding scripted.")
+        return " ".join(parts)
+
+    parts = [
+        "Start the scheduled activity now.",
+        "Lead directly with the activity in 1-2 short sentences.",
+        "Do not give a generic greeting.",
+    ]
+    if title:
+        parts.append(f"Title: {title}.")
+    if instructions:
+        parts.append(f"Instructions: {instructions}")
+    if recent_chat_history:
+        parts.append("If relevant, keep continuity with the recent conversation naturally.")
+    return " ".join(parts)
+
+
 def create_first_message(
     user: dict[str, Any],
     chat_history: list[IConversation],
@@ -342,12 +422,6 @@ def create_first_message(
     early_days_stage_guidance = _build_onboarding_stage_guidance(engine_state)
     first_contact_script = _build_first_contact_script(user)
     if current_job:
-        job_summary = {
-            "job_id": current_job.get("job_id"),
-            "type": current_job.get("type"),
-            "title": current_job.get("title"),
-            "instructions": current_job.get("instructions"),
-        }
         return "\n\n".join(
             part
             for part in [
@@ -361,10 +435,11 @@ def create_first_message(
                 ),
                 f"STYLE GUIDANCE:\n{base_prompt}" if base_prompt else "",
                 last_topic_hint,
-                f"THIS IS THE MOST RECENT {history_label.upper()} CONTEXT:\n{recent_chat_history}"
-                if recent_chat_history
-                else "",
-                f"SCHEDULED ACTIVITY:\n{json.dumps(job_summary, indent=2)}",
+                _build_scheduled_job_first_turn(
+                    user,
+                    current_job,
+                    recent_chat_history=recent_chat_history,
+                ),
             ]
             if part
         )
@@ -453,6 +528,7 @@ def create_system_prompt(
         "FIRST CONTACT REQUIREMENT:\n"
         "This is not the very first interaction, so do not fall back to a generic intro."
     )
+    scheduled_job_section = _build_scheduled_job_system_guidance(user, current_job)
     return "\n\n".join(
         [
             _format_context_block(
@@ -483,6 +559,7 @@ def create_system_prompt(
             ),
             early_days_section,
             first_contact_section,
+            scheduled_job_section,
             _format_context_block(
                 "THIS IS THE CURRENT SCHEDULED ACTIVITY (JOB CONTEXT):",
                 current_job,
