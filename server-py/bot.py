@@ -76,7 +76,7 @@ class RealtimeInputControlProcessor(FrameProcessor):
 
             if msg_type == "instruction" and msg == "end_of_speech":
                 if self._voice_route == "gem_live":
-                    return
+                    await self.push_frame(UserStoppedSpeakingFrame(), FrameDirection.DOWNSTREAM)
                 else:
                     await self.push_frame(
                         EmulateUserStoppedSpeakingFrame(), FrameDirection.DOWNSTREAM

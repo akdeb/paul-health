@@ -4,13 +4,17 @@ from __future__ import annotations
 
 import os
 
+from pipecat.audio.vad.silero import SileroVADAnalyzer
+from pipecat.audio.vad.vad_analyzer import VADParams
 from pipecat.frames.frames import EndFrame, OutputTransportMessageFrame
 from pipecat.processors.aggregators.llm_context import LLMContext
 from pipecat.processors.aggregators.llm_response_universal import (
     LLMContextAggregatorPair,
     LLMUserAggregatorParams,
 )
-from pipecat.turns.user_turn_strategies import ExternalUserTurnStrategies
+from pipecat.turns.user_start.vad_user_turn_start_strategy import VADUserTurnStartStrategy
+from pipecat.turns.user_stop.external_user_turn_stop_strategy import ExternalUserTurnStopStrategy
+from pipecat.turns.user_turn_strategies import UserTurnStrategies
 
 GEMINI_LIVE_TOOLS = [
     {
@@ -71,7 +75,7 @@ def build_gem_live_route(
 ):
     try:
         from pipecat.services.google.gemini_live import GeminiLiveLLMService
-        from pipecat.services.google.gemini_live.llm import EndSensitivity, GeminiVADParams
+        from pipecat.services.google.gemini_live.llm import GeminiVADParams
     except Exception as exc:
         raise RuntimeError(
             "Gemini Live route requires pipecat-ai[google]. Add the google extra and redeploy."
@@ -84,8 +88,11 @@ def build_gem_live_route(
     personality = session.user.get("personality") or {}
     voice = personality.get("voice") or os.getenv("GEMINI_LIVE_VOICE", "Schedar")
     model = os.getenv("GEMINI_LIVE_MODEL", "models/gemini-2.5-flash-native-audio-preview-12-2025")
-    vad_silence_duration_ms = int(os.getenv("GEMINI_LIVE_VAD_SILENCE_MS", "900"))
-    vad_prefix_padding_ms = int(os.getenv("GEMINI_LIVE_VAD_PREFIX_PADDING_MS", "200"))
+    start_vad_confidence = float(os.getenv("GEMINI_LIVE_START_VAD_CONFIDENCE", "0.65"))
+    start_vad_start_secs = float(os.getenv("GEMINI_LIVE_START_VAD_START_SECS", "0.15"))
+    start_vad_stop_secs = float(os.getenv("GEMINI_LIVE_START_VAD_STOP_SECS", "0.5"))
+    start_vad_min_volume = float(os.getenv("GEMINI_LIVE_START_VAD_MIN_VOLUME", "0.5"))
+    external_stop_timeout = float(os.getenv("GEMINI_LIVE_EXTERNAL_STOP_TIMEOUT", "0.75"))
 
     llm = GeminiLiveLLMService(
         api_key=api_key,
@@ -96,10 +103,7 @@ def build_gem_live_route(
             voice=voice,
             system_instruction=session.system_prompt,
             vad=GeminiVADParams(
-                disabled=False,
-                end_sensitivity=EndSensitivity.END_SENSITIVITY_LOW,
-                silence_duration_ms=vad_silence_duration_ms,
-                prefix_padding_ms=vad_prefix_padding_ms,
+                disabled=True,
             ),
         ),
     )
@@ -109,7 +113,18 @@ def build_gem_live_route(
     user_aggregator, assistant_aggregator = LLMContextAggregatorPair(
         context,
         user_params=LLMUserAggregatorParams(
-            user_turn_strategies=ExternalUserTurnStrategies(),
+            user_turn_strategies=UserTurnStrategies(
+                start=[VADUserTurnStartStrategy()],
+                stop=[ExternalUserTurnStopStrategy(timeout=external_stop_timeout)],
+            ),
+            vad_analyzer=SileroVADAnalyzer(
+                params=VADParams(
+                    confidence=start_vad_confidence,
+                    start_secs=start_vad_start_secs,
+                    stop_secs=start_vad_stop_secs,
+                    min_volume=start_vad_min_volume,
+                )
+            ),
             filter_incomplete_user_turns=True,
         ),
     )
