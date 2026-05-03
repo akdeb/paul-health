@@ -40,6 +40,7 @@ from pipecat.frames.frames import (
     StartFrame,
     STTMuteFrame,
     TranscriptionFrame,
+    TTSStartedFrame,
     TTSStoppedFrame,
     TTSTextFrame,
     UserStoppedSpeakingFrame,
@@ -100,6 +101,31 @@ class RealtimeOutputControlProcessor(FrameProcessor):
         super().__init__()
         self._session = session
         self._response_started = False
+        self._use_early_response_created = (
+            (session.current_job or {}).get("type") == "conversation_news"
+        )
+
+    async def _send_response_created(self, direction: FrameDirection, log_message: str):
+        if self._response_started:
+            return
+
+        self._response_started = True
+        logger.debug(log_message)
+        await self.push_frame(STTMuteFrame(mute=True), direction)
+        latest_device = get_device_info(
+            self._session.supabase,
+            self._session.user["user_id"],
+        )
+        response_created_message = {
+            "type": "server",
+            "msg": "RESPONSE.CREATED",
+        }
+        if latest_device and latest_device.get("volume") is not None:
+            response_created_message["volume_control"] = latest_device["volume"]
+        await self.push_frame(
+            OutputTransportMessageFrame(message=response_created_message),
+            direction,
+        )
 
     async def process_frame(self, frame: Frame, direction: FrameDirection):
         await super().process_frame(frame, direction)
@@ -110,23 +136,19 @@ class RealtimeOutputControlProcessor(FrameProcessor):
                     OutputTransportMessageFrame(message={"type": "server", "msg": "AUDIO.COMMITTED"}),
                     direction,
                 )
-            elif isinstance(frame, OutputAudioRawFrame) and not self._response_started:
-                self._response_started = True
-                logger.debug("Sending RESPONSE.CREATED before first audio packet")
-                await self.push_frame(STTMuteFrame(mute=True), direction)
-                latest_device = get_device_info(
-                    self._session.supabase,
-                    self._session.user["user_id"],
-                )
-                response_created_message = {
-                    "type": "server",
-                    "msg": "RESPONSE.CREATED",
-                }
-                if latest_device and latest_device.get("volume") is not None:
-                    response_created_message["volume_control"] = latest_device["volume"]
-                await self.push_frame(
-                    OutputTransportMessageFrame(message=response_created_message),
+            elif (
+                self._use_early_response_created
+                and isinstance(frame, TTSStartedFrame)
+                and not self._response_started
+            ):
+                await self._send_response_created(
                     direction,
+                    "Sending RESPONSE.CREATED on TTSStartedFrame for scheduled news job",
+                )
+            elif isinstance(frame, OutputAudioRawFrame) and not self._response_started:
+                await self._send_response_created(
+                    direction,
+                    "Sending RESPONSE.CREATED before first audio packet",
                 )
             elif isinstance(frame, (TTSStoppedFrame, BotStoppedSpeakingFrame)):
                 self._response_started = False
