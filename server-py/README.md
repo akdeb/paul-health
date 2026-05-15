@@ -28,7 +28,7 @@ This workspace now exposes two access paths to the same Pipecat bot logic:
    - `XAI_API_KEY`
 
    Route selection:
-   - `CURRENT_VOICE_ROUTE=classic` or `CURRENT_VOICE_ROUTE=gem_live` or `CURRENT_VOICE_ROUTE=grok`
+   - `CURRENT_VOICE_ROUTE=classic` or `CURRENT_VOICE_ROUTE=gem_live` or `CURRENT_VOICE_ROUTE=grok` or `CURRENT_VOICE_ROUTE=openai_realtime`
 
    Optional Gemini Live settings:
    - `GEMINI_LIVE_MODEL`
@@ -69,6 +69,8 @@ This workspace now exposes two access paths to the same Pipecat bot logic:
   speech-to-speech.
 - `CURRENT_VOICE_ROUTE=grok` uses Pipecat `GrokRealtimeLLMService` for native
   speech-to-speech.
+- `CURRENT_VOICE_ROUTE=openai_realtime` uses a direct OpenAI Realtime websocket
+  connection (`gpt-realtime-2`) and bypasses Pipecat for the live audio loop.
 - Route builders are split into [classic_route.py](/Users/akashdeepdeb/Desktop/Projects/pipecat-test/classic_route.py)
   and [gem_live_route.py](/Users/akashdeepdeb/Desktop/Projects/pipecat-test/gem_live_route.py),
 - The included [Dockerfile](/Users/akashdeepdeb/Desktop/Projects/pipecat-test/Dockerfile) is

@@ -10,18 +10,12 @@ from fastapi import FastAPI, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, RedirectResponse
 from loguru import logger
-from pipecat.transports.websocket.fastapi import FastAPIWebsocketParams
-
-from bot import run_bot_session
-from esp32_transport import (
-    BrowserWebsocketTransport,
-    Esp32WebsocketTransport,
-    RawPCMFrameSerializer,
-)
+from openai_realtime_route import run_openai_realtime_session
 from session import build_session_state
 
 HOST = os.getenv("HOST", "0.0.0.0")
 PORT = int(os.getenv("PORT", "7860"))
+CURRENT_VOICE_ROUTE = os.getenv("CURRENT_VOICE_ROUTE", "classic").strip().lower()
 BROWSER_INPUT_SAMPLE_RATE = int(os.getenv("BROWSER_INPUT_SAMPLE_RATE", "16000"))
 ESP32_INPUT_SAMPLE_RATE = int(os.getenv("ESP32_INPUT_SAMPLE_RATE", "16000"))
 AUDIO_OUTPUT_SAMPLE_RATE = int(os.getenv("AUDIO_OUTPUT_SAMPLE_RATE", "24000"))
@@ -203,7 +197,11 @@ BROWSER_HTML = """<!doctype html>
 </html>"""
 
 
-def create_browser_transport(websocket: WebSocket) -> BrowserWebsocketTransport:
+def create_browser_transport(websocket: WebSocket):
+    from pipecat.transports.websocket.fastapi import FastAPIWebsocketParams
+
+    from esp32_transport import BrowserWebsocketTransport, RawPCMFrameSerializer
+
     return BrowserWebsocketTransport(
         websocket=websocket,
         params=FastAPIWebsocketParams(
@@ -216,7 +214,11 @@ def create_browser_transport(websocket: WebSocket) -> BrowserWebsocketTransport:
     )
 
 
-def create_esp32_transport(websocket: WebSocket) -> Esp32WebsocketTransport:
+def create_esp32_transport(websocket: WebSocket):
+    from pipecat.transports.websocket.fastapi import FastAPIWebsocketParams
+
+    from esp32_transport import Esp32WebsocketTransport, RawPCMFrameSerializer
+
     return Esp32WebsocketTransport(
         websocket=websocket,
         params=FastAPIWebsocketParams(
@@ -263,6 +265,10 @@ def create_app() -> FastAPI:
         await websocket.accept()
         logger.info("Browser websocket connected for user={}", session.user.get("user_id"))
         await websocket.send_text(json.dumps(session.create_auth_message()))
+        if CURRENT_VOICE_ROUTE == "openai_realtime":
+            await run_openai_realtime_session(websocket, "browser", session)
+            return
+        from bot import run_bot_session
         transport = create_browser_transport(websocket)
         await run_bot_session(transport, "browser", session, False)
 
@@ -284,6 +290,10 @@ def create_app() -> FastAPI:
             session.job_id,
         )
         await websocket.send_text(json.dumps(session.create_auth_message()))
+        if CURRENT_VOICE_ROUTE == "openai_realtime":
+            await run_openai_realtime_session(websocket, "esp32", session)
+            return
+        from bot import run_bot_session
         transport = create_esp32_transport(websocket)
         await run_bot_session(transport, "esp32", session, False)
 
