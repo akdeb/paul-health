@@ -10,6 +10,7 @@ from fastapi import FastAPI, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, RedirectResponse
 from loguru import logger
+from gemini_route import run_gemini_session
 from openai_realtime_route import run_openai_realtime_session
 from session import build_session_state
 
@@ -268,6 +269,9 @@ def create_app() -> FastAPI:
         if CURRENT_VOICE_ROUTE == "openai_realtime":
             await run_openai_realtime_session(websocket, "browser", session)
             return
+        if CURRENT_VOICE_ROUTE == "gemini":
+            await run_gemini_session(websocket, "browser", session)
+            return
         from bot import run_bot_session
         transport = create_browser_transport(websocket)
         await run_bot_session(transport, "browser", session, False)
@@ -292,6 +296,9 @@ def create_app() -> FastAPI:
         await websocket.send_text(json.dumps(session.create_auth_message()))
         if CURRENT_VOICE_ROUTE == "openai_realtime":
             await run_openai_realtime_session(websocket, "esp32", session)
+            return
+        if CURRENT_VOICE_ROUTE == "gemini":
+            await run_gemini_session(websocket, "esp32", session)
             return
         from bot import run_bot_session
         transport = create_esp32_transport(websocket)
