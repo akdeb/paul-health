@@ -63,14 +63,6 @@ class OpenAIRealtimeRunner:
         self._send_lock = asyncio.Lock()
         self._closed = False
         self._last_assistant_item_id: str | None = None
-        self._pending_input_audio = bytearray()
-        self._pending_audio_lock = asyncio.Lock()
-        self._audio_flush_interval_seconds = float(
-            os.getenv("OPENAI_REALTIME_AUDIO_FLUSH_INTERVAL_SECONDS", "0.05")
-        )
-        self._audio_flush_threshold_bytes = int(
-            os.getenv("OPENAI_REALTIME_AUDIO_FLUSH_THRESHOLD_BYTES", "2048")
-        )
         self._opus_encoder = (
             OpusEncoder(sample_rate=24000, channels=1, bit_rate=24000)
             if transport_kind == "esp32"
@@ -90,9 +82,6 @@ class OpenAIRealtimeRunner:
         return hashlib.sha256(str(raw).encode("utf-8")).hexdigest()
 
     def _turn_detection(self) -> dict[str, Any] | None:
-        if self._transport_kind == "esp32":
-            return None
-
         return {
             "type": "server_vad",
             "threshold": float(os.getenv("OPENAI_REALTIME_VAD_THRESHOLD", "0.4")),
@@ -223,39 +212,14 @@ class OpenAIRealtimeRunner:
         if not audio_bytes or self._connection is None:
             return
 
-        should_flush = False
-        async with self._pending_audio_lock:
-            self._pending_input_audio.extend(audio_bytes)
-            should_flush = len(self._pending_input_audio) >= self._audio_flush_threshold_bytes
-
-        if should_flush:
-            await self._flush_pending_audio()
-
-    async def _flush_pending_audio(self) -> None:
-        if self._connection is None:
-            return
-
-        async with self._pending_audio_lock:
-            if not self._pending_input_audio:
-                return
-            raw_audio = bytes(self._pending_input_audio)
-            self._pending_input_audio.clear()
-
-        audio_24k = _upsample_pcm16_mono(raw_audio)
+        audio_24k = _upsample_pcm16_mono(audio_bytes)
         encoded = base64.b64encode(audio_24k).decode("utf-8")
         await self._connection_send(self._connection.input_audio_buffer.append, audio=encoded)
-
-    async def _audio_flush_loop(self) -> None:
-        while not self._closed:
-            await asyncio.sleep(self._audio_flush_interval_seconds)
-            await self._flush_pending_audio()
 
     async def _handle_interrupt(self, audio_end_ms: int | None) -> None:
         if self._connection is None:
             return
 
-        async with self._pending_audio_lock:
-            self._pending_input_audio.clear()
         with suppress(Exception):
             await self._connection_send(self._connection.response.cancel)
         if self._last_assistant_item_id and audio_end_ms is not None:
@@ -281,9 +245,9 @@ class OpenAIRealtimeRunner:
 
         command = message.get("msg")
         if command == "end_of_speech" and self._transport_kind == "esp32":
-            await self._flush_pending_audio()
             await self._connection_send(self._connection.input_audio_buffer.commit)
             await self._connection_send(self._connection.response.create)
+            await self._connection_send(self._connection.input_audio_buffer.clear)
         elif command == "INTERRUPT":
             await self._handle_interrupt(message.get("audio_end_ms"))
 
@@ -413,10 +377,9 @@ class OpenAIRealtimeRunner:
 
             client_task = asyncio.create_task(self._client_loop())
             openai_task = asyncio.create_task(self._openai_loop())
-            audio_flush_task = asyncio.create_task(self._audio_flush_loop())
 
             done, pending = await asyncio.wait(
-                {client_task, openai_task, audio_flush_task},
+                {client_task, openai_task},
                 return_when=asyncio.FIRST_COMPLETED,
             )
             for task in pending:
@@ -429,8 +392,6 @@ class OpenAIRealtimeRunner:
                     raise exc
         finally:
             self._closed = True
-            with suppress(Exception):
-                await self._flush_pending_audio()
             if self._connection is not None:
                 with suppress(Exception):
                     await asyncio.to_thread(self._connection.close)
