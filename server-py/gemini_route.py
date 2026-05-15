@@ -16,42 +16,43 @@ from loguru import logger
 from audio_codecs import OpusEncoder
 from session import SessionState, add_conversation, get_device_info
 
-GEMINI_DIRECT_TOOLS = [
-    {
-        "function_declarations": [
-            {
-                "name": "test_function",
-                "description": (
-                    "A simple test function that always returns hello world. "
-                    "Use this when the user says ABRACADABRA."
-                ),
-                "parameters": {
-                    "type": "object",
-                    "properties": {},
-                },
-            },
-            {
-                "name": "end_call",
-                "description": (
-                    "Call this if the user says bye or needs to leave or suggests they want "
-                    'to end the session. Examples include "I gotta go", "I have to work", '
-                    '"I have to sleep", or "I have to do something else".'
-                ),
-                "parameters": {
-                    "type": "object",
-                    "properties": {
-                        "reason": {
-                            "type": "string",
-                            "description": "Short reason for ending the call.",
-                        }
+def _build_gemini_tools() -> list[types.Tool]:
+    return [
+        types.Tool(
+            function_declarations=[
+                {
+                    "name": "test_function",
+                    "description": (
+                        "A simple test function that always returns hello world. "
+                        "Use this when the user says ABRACADABRA."
+                    ),
+                    "parameters": {
+                        "type": "object",
+                        "properties": {},
                     },
-                    "required": ["reason"],
                 },
-            },
-        ]
-    },
-    {"google_search": {}},
-]
+                {
+                    "name": "end_call",
+                    "description": (
+                        "Call this if the user says bye or needs to leave or suggests they want "
+                        'to end the session. Examples include "I gotta go", "I have to work", '
+                        '"I have to sleep", or "I have to do something else".'
+                    ),
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "reason": {
+                                "type": "string",
+                                "description": "Short reason for ending the call.",
+                            }
+                        },
+                        "required": ["reason"],
+                    },
+                },
+            ]
+        ),
+        types.Tool(google_search=types.GoogleSearch()),
+    ]
 
 
 class GeminiDirectRunner:
@@ -113,7 +114,7 @@ class GeminiDirectRunner:
             ),
             input_audio_transcription=types.AudioTranscriptionConfig(),
             output_audio_transcription=types.AudioTranscriptionConfig(),
-            tools=GEMINI_DIRECT_TOOLS,
+            tools=_build_gemini_tools(),
         )
 
     async def _send_transport_message(self, message: dict[str, Any]) -> None:
