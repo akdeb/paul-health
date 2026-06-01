@@ -234,6 +234,7 @@ export type Database = {
           age: number
           avoid: string[]
           caregiver_id: string
+          checklist: Json
           created_at: string
           gender: string
           jobs: string[]
@@ -249,6 +250,7 @@ export type Database = {
           age?: number
           avoid: string[]
           caregiver_id: string
+          checklist?: Json
           created_at?: string
           gender?: string
           jobs: string[]
@@ -264,6 +266,7 @@ export type Database = {
           age?: number
           avoid?: string[]
           caregiver_id?: string
+          checklist?: Json
           created_at?: string
           gender?: string
           jobs?: string[]

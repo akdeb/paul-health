@@ -70,6 +70,7 @@ declare global {
         avoid: string[];
         caregiver_id: string;
         timezone: string;
+        checklist: import("@/lib/onboarding").OnboardingChecklistItem[];
     }
 
     interface IPhoto {

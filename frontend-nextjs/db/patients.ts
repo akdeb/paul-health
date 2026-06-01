@@ -1,4 +1,5 @@
 import { type SupabaseClient } from "@supabase/supabase-js";
+import { createDefaultOnboardingChecklist } from "@/lib/onboarding";
 
 export const getPatientById = async (
     supabase: SupabaseClient,
@@ -52,6 +53,7 @@ export const createPatient = async (
             avoid: patient.avoid ?? [],
             about: patient.about ?? "",
             timezone: patient.timezone ?? "UTC",
+            checklist: patient.checklist ?? createDefaultOnboardingChecklist(),
             caregiver_id: patient.caregiver_id,
         })
         .select()
@@ -122,6 +124,7 @@ export const ensurePatientForCaregiver = async (
         avoid: [],
         about: "",
         timezone: "UTC",
+        checklist: createDefaultOnboardingChecklist(),
     });
 
     if (!createdPatient) {
