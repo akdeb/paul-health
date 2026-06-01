@@ -9,8 +9,8 @@ import ActionsFeed from "@/app/components/Actions/ActionsFeed";
 import ClearHistoryButton from "@/app/components/Actions/ClearHistoryButton";
 
 export const metadata: Metadata = {
-    title: "Actions",
-    ...getOpenGraphMetadata("Actions"),
+    title: "History",
+    ...getOpenGraphMetadata("History"),
 };
 
 export default async function Home() {
@@ -37,7 +37,7 @@ export default async function Home() {
         <div className="flex flex-col gap-6">
             <div className="flex gap-3 flex-row justify-between">
               <div className="flex flex-col gap-2">
-                <h1 className="text-3xl font-normal">Actions</h1>
+                <h1 className="text-3xl font-normal">History</h1>
                 <HomePageSubtitles user={dbUser} page="actions" />
               </div>
               <ClearHistoryButton />
