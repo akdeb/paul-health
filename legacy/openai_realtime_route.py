@@ -17,6 +17,7 @@ from openai import OpenAI
 from websockets.exceptions import ConnectionClosed
 
 from audio_codecs import OpusEncoder
+from onboarding import MARK_ONBOARDING_ITEM_TOOL, mark_onboarding_item_complete
 from session import SessionState, add_conversation, get_device_info
 
 OPENAI_REALTIME_ALLOWED_VOICES = {
@@ -92,6 +93,14 @@ class OpenAIRealtimeRunner:
         }
 
     def _tool_definitions(self) -> list[dict[str, Any]]:
+        mark_onboarding_tool = {
+            "type": "function",
+            **MARK_ONBOARDING_ITEM_TOOL,
+            "parameters": {
+                **MARK_ONBOARDING_ITEM_TOOL["parameters"],
+                "additionalProperties": False,
+            },
+        }
         return [
             {
                 "type": "function",
@@ -112,7 +121,8 @@ class OpenAIRealtimeRunner:
                     "required": ["reason"],
                     "additionalProperties": False,
                 },
-            }
+            },
+            mark_onboarding_tool,
         ]
 
     async def _connection_send(self, fn, /, *args, **kwargs):
@@ -279,16 +289,39 @@ class OpenAIRealtimeRunner:
         if self._connection is None:
             return
 
-        if event.name != "end_session":
+        if event.name not in {"end_session", "mark_onboarding_item_complete"}:
             return
 
-        reason = "User ended the session"
+        arguments: dict[str, Any] = {}
         if event.arguments:
             try:
-                parsed = json.loads(event.arguments)
-                reason = str(parsed.get("reason") or reason)
+                arguments = json.loads(event.arguments)
             except json.JSONDecodeError:
                 pass
+
+        if event.name == "mark_onboarding_item_complete":
+            key = str(arguments.get("key") or "").strip()
+            try:
+                output = mark_onboarding_item_complete(
+                    self._session.supabase,
+                    self._session.user,
+                    key,
+                )
+            except Exception as exc:
+                output = {"success": False, "error": str(exc), "key": key}
+
+            await self._connection_send(
+                self._connection.conversation.item.create,
+                item={
+                    "type": "function_call_output",
+                    "call_id": event.call_id,
+                    "output": json.dumps(output),
+                },
+            )
+            await self._connection_send(self._connection.response.create)
+            return
+
+        reason = str(arguments.get("reason") or "User ended the session")
 
         await self._connection_send(
             self._connection.conversation.item.create,

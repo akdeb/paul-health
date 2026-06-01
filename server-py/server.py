@@ -11,12 +11,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import HTMLResponse, RedirectResponse
 from loguru import logger
 from gemini_route import run_gemini_session
-from openai_realtime_route import run_openai_realtime_session
 from session import build_session_state
 
 HOST = os.getenv("HOST", "0.0.0.0")
 PORT = int(os.getenv("PORT", "7860"))
-CURRENT_VOICE_ROUTE = os.getenv("CURRENT_VOICE_ROUTE", "classic").strip().lower()
+CURRENT_VOICE_ROUTE = os.getenv("CURRENT_VOICE_ROUTE", "gemini").strip().lower()
 BROWSER_INPUT_SAMPLE_RATE = int(os.getenv("BROWSER_INPUT_SAMPLE_RATE", "16000"))
 ESP32_INPUT_SAMPLE_RATE = int(os.getenv("ESP32_INPUT_SAMPLE_RATE", "16000"))
 AUDIO_OUTPUT_SAMPLE_RATE = int(os.getenv("AUDIO_OUTPUT_SAMPLE_RATE", "24000"))
@@ -266,15 +265,11 @@ def create_app() -> FastAPI:
         await websocket.accept()
         logger.info("Browser websocket connected for user={}", session.user.get("user_id"))
         await websocket.send_text(json.dumps(session.create_auth_message()))
-        if CURRENT_VOICE_ROUTE == "openai_realtime":
-            await run_openai_realtime_session(websocket, "browser", session)
+        if CURRENT_VOICE_ROUTE != "gemini":
+            logger.warning("Unsupported CURRENT_VOICE_ROUTE={} on Gemini-only server", CURRENT_VOICE_ROUTE)
+            await websocket.close(code=1011, reason="Unsupported voice route")
             return
-        if CURRENT_VOICE_ROUTE == "gemini":
-            await run_gemini_session(websocket, "browser", session)
-            return
-        from bot import run_bot_session
-        transport = create_browser_transport(websocket)
-        await run_bot_session(transport, "browser", session, False)
+        await run_gemini_session(websocket, "browser", session)
 
     @app.websocket("/ws/esp32")
     async def esp32_websocket(websocket: WebSocket):
@@ -294,15 +289,11 @@ def create_app() -> FastAPI:
             session.job_id,
         )
         await websocket.send_text(json.dumps(session.create_auth_message()))
-        if CURRENT_VOICE_ROUTE == "openai_realtime":
-            await run_openai_realtime_session(websocket, "esp32", session)
+        if CURRENT_VOICE_ROUTE != "gemini":
+            logger.warning("Unsupported CURRENT_VOICE_ROUTE={} on Gemini-only server", CURRENT_VOICE_ROUTE)
+            await websocket.close(code=1011, reason="Unsupported voice route")
             return
-        if CURRENT_VOICE_ROUTE == "gemini":
-            await run_gemini_session(websocket, "esp32", session)
-            return
-        from bot import run_bot_session
-        transport = create_esp32_transport(websocket)
-        await run_bot_session(transport, "esp32", session, False)
+        await run_gemini_session(websocket, "esp32", session)
 
     return app
 

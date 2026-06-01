@@ -14,6 +14,7 @@ from google.genai import types
 from loguru import logger
 
 from audio_codecs import OpusEncoder
+from onboarding import MARK_ONBOARDING_ITEM_TOOL, mark_onboarding_item_complete
 from session import SessionState, add_conversation, get_device_info
 
 def _build_gemini_tools() -> list[types.Tool]:
@@ -49,6 +50,7 @@ def _build_gemini_tools() -> list[types.Tool]:
                         "required": ["reason"],
                     },
                 },
+                MARK_ONBOARDING_ITEM_TOOL,
             ]
         ),
         types.Tool(google_search=types.GoogleSearch()),
@@ -198,6 +200,23 @@ class GeminiDirectRunner:
                         id=function_call.id,
                         name="end_call",
                         response={"output": f"Call ended: {reason}"},
+                    )
+                )
+            elif function_call.name == "mark_onboarding_item_complete":
+                key = str((function_call.args or {}).get("key") or "").strip()
+                try:
+                    result = mark_onboarding_item_complete(
+                        self._session.supabase,
+                        self._session.user,
+                        key,
+                    )
+                except Exception as exc:
+                    result = {"success": False, "error": str(exc), "key": key}
+                responses.append(
+                    types.FunctionResponse(
+                        id=function_call.id,
+                        name="mark_onboarding_item_complete",
+                        response=result,
                     )
                 )
 

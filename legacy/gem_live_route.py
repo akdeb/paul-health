@@ -17,6 +17,7 @@ from pipecat.turns.user_stop.speech_timeout_user_turn_stop_strategy import (
     SpeechTimeoutUserTurnStopStrategy,
 )
 from pipecat.turns.user_turn_strategies import UserTurnStrategies
+from onboarding import MARK_ONBOARDING_ITEM_TOOL, mark_onboarding_item_complete
 
 GEMINI_LIVE_TOOLS = [
     {
@@ -50,6 +51,7 @@ GEMINI_LIVE_TOOLS = [
                     "required": ["reason"],
                 },
             },
+            MARK_ONBOARDING_ITEM_TOOL,
         ]
     }
 ]
@@ -117,6 +119,20 @@ def build_gem_live_route(
     )
     llm.register_function("test_function", _handle_test_function)
     llm.register_function("end_call", _handle_end_call, cancel_on_interruption=False)
+
+    async def _handle_mark_onboarding_item_complete(params) -> None:
+        key = str((params.arguments or {}).get("key") or "").strip()
+        try:
+            result = mark_onboarding_item_complete(session.supabase, session.user, key)
+            await params.result_callback(result)
+        except Exception as exc:
+            await params.result_callback({"success": False, "error": str(exc), "key": key})
+
+    llm.register_function(
+        "mark_onboarding_item_complete",
+        _handle_mark_onboarding_item_complete,
+        cancel_on_interruption=False,
+    )
 
     user_aggregator, assistant_aggregator = LLMContextAggregatorPair(
         context,

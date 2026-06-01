@@ -3,11 +3,11 @@
 from __future__ import annotations
 
 import json
-import os
-from datetime import datetime, timezone
+from datetime import datetime
 from typing import Any
 
 from app_types import ActionTransportType, IConversation, IJob, IUser
+from onboarding import build_onboarding_prompt_block, get_onboarding_state
 
 
 def compose_chat_history(conversations: list[IConversation]) -> str:
@@ -28,15 +28,6 @@ def _compose_recent_chat_history(
 
 
 def _parse_conversation_timestamp(value: Any) -> datetime | None:
-    if not value:
-        return None
-    try:
-        return datetime.fromisoformat(str(value).replace("Z", "+00:00"))
-    except Exception:
-        return None
-
-
-def _parse_user_timestamp(value: Any) -> datetime | None:
     if not value:
         return None
     try:
@@ -71,29 +62,30 @@ def _build_engine_state(
     prior_action_count: int,
     chat_history: list[IConversation],
 ) -> dict[str, Any]:
-    if prior_action_count == 0 and not chat_history:
-        return {"active": True, "stage": "first_contact"}
+    onboarding_state = get_onboarding_state(user)
+    if not onboarding_state["active"]:
+        return {**onboarding_state, "stage": "normal"}
 
-    onboarding_days = int(os.getenv("PAUL_ONBOARDING_DAYS", "3"))
-    onboarding_session_cap = int(os.getenv("PAUL_ONBOARDING_SESSION_CAP", "8"))
-    created_at = _parse_user_timestamp(user.get("created_at"))
-    now = datetime.now(timezone.utc)
-
-    is_within_onboarding_window = False
-    if created_at:
-        is_within_onboarding_window = (now - created_at).total_seconds() <= onboarding_days * 86400
-
-    active = is_within_onboarding_window and prior_action_count < onboarding_session_cap
-
-    if not active:
-        return {"active": False, "stage": "normal"}
-
-    if prior_action_count <= 2:
-        stage = "expectation_setting"
+    next_key = onboarding_state["next_key"]
+    if prior_action_count == 0 and not chat_history and next_key == "identity_and_role":
+        stage = "first_contact"
+    elif next_key in {
+        "identity_and_role",
+        "ai_disclosure",
+        "conversation_capability",
+        "proactive_checkins",
+        "reminders_and_day_context",
+        "how_to_interact",
+        "escape_hatches",
+        "acknowledge_weirdness",
+    }:
+        stage = "orientation"
+    elif next_key in {"preferred_name", "important_people", "interests", "emotional_checkin"}:
+        stage = "context_building"
     else:
-        stage = "light_context_building"
+        stage = "close_onboarding"
 
-    return {"active": True, "stage": stage}
+    return {**onboarding_state, "stage": stage}
 
 
 def _build_last_topic_hint(conversations: list[IConversation]) -> str:
@@ -116,6 +108,7 @@ def _build_opening_mode_instruction(
     chat_history: list[IConversation],
     *,
     current_job: IJob | None = None,
+    onboarding_state: dict[str, Any] | None = None,
 ) -> str:
     hours_since_last = _hours_since_last_conversation(chat_history)
 
@@ -128,6 +121,16 @@ def _build_opening_mode_instruction(
             "Do not explain that you are an AI.\n"
             "Do not mention internal scheduling.\n"
             "Be proactive and gently directive: lead the patient into the activity right away."
+        )
+
+    if onboarding_state and onboarding_state.get("active"):
+        next_item = onboarding_state.get("next_item") or {}
+        return (
+            "OPENING MODE: onboarding checklist continuation.\n"
+            "Open with the next incomplete onboarding item, not generic chatter.\n"
+            "Keep it short and spoken.\n"
+            "If this is the first contact, follow the first-contact script. Otherwise do only one small onboarding beat.\n"
+            f"Next item: {next_item.get('key')} - {next_item.get('title')}."
         )
 
     if hours_since_last is not None and hours_since_last <= 2:
@@ -167,17 +170,22 @@ def _build_onboarding_guidance(engine_state: dict[str, Any]) -> str:
     if not engine_state["active"]:
         return ""
 
+    next_item = engine_state.get("next_item") or {}
     return (
-        "EARLY DAYS CONVERSATION MODE:\n"
-        "The patient is still in the first few days of using Paul.\n"
+        "ONBOARDING CHECKLIST MODE:\n"
+        "The patient still has required onboarding items to complete.\n"
+        "Prioritize the next incomplete onboarding item before normal conversation.\n"
         "Do not dump the whole onboarding in one monologue.\n"
-        "Handle only one small trust-building or orientation beat at a time.\n"
+        "Handle only one item at a time.\n"
         "One question at a time.\n"
         "Offer a short example reply when you ask something personal.\n"
         "Offer an escape hatch such as 'no pressure' or 'we can come back to it'.\n"
         "Reflect the answer back briefly so the patient feels heard.\n"
+        "If the patient digresses, respond briefly and then come back to the checklist.\n"
+        "Use mark_onboarding_item_complete only after the item has actually been covered, answered, acknowledged, or explicitly declined.\n"
         "Be direct, warm, grounded, and a bit nudging.\n"
-        "Never be patronising."
+        "Never be patronising.\n"
+        f"Next item: {next_item.get('key')} - {next_item.get('title')}."
     )
 
 
@@ -185,24 +193,28 @@ def _build_onboarding_stage_guidance(engine_state: dict[str, Any]) -> str:
     stage = engine_state["stage"]
     if stage == "first_contact":
         return (
-            "EARLY DAYS STAGE: first contact.\n"
-            "You may briefly introduce yourself and briefly explain that you are an AI, but do it once only.\n"
-            "Keep the whole opening concise.\n"
-            "After that, move quickly into a simple expectation-setting line or one easy get-to-know-you question.\n"
-            "Do not deliver a long speech."
+            "ONBOARDING STAGE: first contact.\n"
+            "Follow the first-contact script closely enough that the patient understands who Paul is, what Paul does, and that Paul is an AI.\n"
+            "Keep it warm and spoken, but do not collapse it into a vague one-liner.\n"
+            "After the orientation beats, ask only one easy get-to-know-you question."
         )
-    if stage == "expectation_setting":
+    if stage == "orientation":
         return (
-            "EARLY DAYS STAGE: expectation setting.\n"
-            "Assume the patient already basically knows who you are.\n"
-            "Do not re-introduce yourself.\n"
-            "Focus on one practical piece of how Paul works, or one small trust-building question."
+            "ONBOARDING STAGE: orientation.\n"
+            "Focus on the next practical piece of how Paul works.\n"
+            "Do not re-run completed orientation items."
         )
-    if stage == "light_context_building":
+    if stage == "context_building":
         return (
-            "EARLY DAYS STAGE: light context building.\n"
+            "ONBOARDING STAGE: context building.\n"
             "No introductions.\n"
-            "Use the conversation to gently learn preferences, relationships, and routines in a natural way."
+            "Ask the next personal-context question naturally.\n"
+            "Offer an example reply and an escape hatch."
+        )
+    if stage == "close_onboarding":
+        return (
+            "ONBOARDING STAGE: close onboarding.\n"
+            "Briefly close the intro and hand off to normal conversation."
         )
     return ""
 
@@ -366,14 +378,15 @@ def create_first_message(
     history_label = "device chat history" if action_type == "device_chat" else "web chat history"
     recent_chat_history = _compose_recent_chat_history(chat_history)
     last_topic_hint = _build_last_topic_hint(chat_history)
-    opening_mode_instruction = _build_opening_mode_instruction(
-        chat_history,
-        current_job=current_job,
-    )
     engine_state = _build_engine_state(
         user,
         prior_action_count=prior_action_count,
         chat_history=chat_history,
+    )
+    opening_mode_instruction = _build_opening_mode_instruction(
+        chat_history,
+        current_job=current_job,
+        onboarding_state=engine_state,
     )
 
     style_guidance = (
@@ -393,7 +406,8 @@ def create_first_message(
                 early_days_stage_guidance,
                 (
                     "For a scheduled activity, keep the opening especially short and lead with the activity. "
-                    "If early-days guidance is active, do not run a separate intro here."
+                    "If onboarding is active, do not run a separate intro before the activity. "
+                    "After the activity has started, continue the next checklist item when it fits."
                 ),
                 f"STYLE GUIDANCE:\n{base_prompt}" if base_prompt else "",
                 last_topic_hint,
@@ -465,21 +479,7 @@ def create_system_prompt(
         prior_action_count=prior_action_count,
         chat_history=chat_history,
     )
-    early_days_section = (
-        "EARLY DAYS CONVERSATION MODE:\n"
-        "This user is still in the first few days of using Paul.\n"
-        "Spread early trust-building and orientation over multiple sessions instead of front-loading it.\n"
-        "For self-initiated chats, you can spend one small beat on setting expectations, acknowledging the weirdness, building trust, or learning personal context.\n"
-        "One question at a time.\n"
-        "Offer an example reply.\n"
-        "Offer an escape hatch.\n"
-        "Reflect answers briefly.\n"
-        "Never deliver the full intro monologue again after first contact.\n"
-        "Scheduled activity sessions should stay primarily about the activity, even during the early-days period."
-    ) if engine_state["active"] else (
-        "EARLY DAYS CONVERSATION MODE:\n"
-        "Normal conversation mode is active. The dedicated early-days period has ended."
-    )
+    onboarding_section = build_onboarding_prompt_block(user)
     first_contact_section = (
         "FIRST CONTACT REQUIREMENT:\n"
         "If there is no conversation history and this is the first contact stage, your first reply should explicitly introduce Paul, honestly say that he is an AI, set expectations about check-ins and reminders, acknowledge the weirdness, and then ask one simple trust-building question.\n"
@@ -519,7 +519,7 @@ def create_system_prompt(
                 "For scheduled chats, open directly into the activity in 1-2 short sentences without a generic preamble.\n"
                 "Be proactive and gently nudging rather than passive. Offer a concrete next direction instead of broad generic chatter."
             ),
-            early_days_section,
+            onboarding_section,
             first_contact_section,
             scheduled_job_section,
             _format_context_block(
