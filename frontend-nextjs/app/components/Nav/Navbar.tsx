@@ -106,7 +106,7 @@ export function Navbar({
                 onClick={() => void handleStartCheckIn()}
               >
                 <Send size={16} className="mr-2" />
-                {isStartingCheckIn ? "Starting..." : "Check-in"}
+                {isStartingCheckIn ? "Starting..." : "Ask Paul"}
               </Button>}
             </nav>
         </div>

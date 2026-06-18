@@ -54,7 +54,7 @@ export default function OnboardingChecklistWidget({
         <div className="flex w-full flex-wrap items-center justify-between gap-3">
           <span className="flex items-center gap-2">
             <ListChecks className="h-5 w-5" />
-            Onboarding checklist
+            Onboarding
           </span>
           <span className={progressPillClassName}>
             {completedCount}/{totalCount} complete
