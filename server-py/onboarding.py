@@ -131,26 +131,6 @@ ONBOARDING_ITEMS: list[dict[str, Any]] = [
 
 ONBOARDING_ITEM_BY_KEY = {item["key"]: item for item in ONBOARDING_ITEMS}
 
-MARK_ONBOARDING_ITEM_TOOL: dict[str, Any] = {
-    "name": "mark_onboarding_item_complete",
-    "description": (
-        "Mark one required Paul onboarding checklist item complete after it has been covered, "
-        "acknowledged, answered, or explicitly declined by the patient."
-    ),
-    "parameters": {
-        "type": "object",
-        "properties": {
-            "key": {
-                "type": "string",
-                "description": "The exact onboarding item key to mark complete.",
-                "enum": [item["key"] for item in ONBOARDING_ITEMS],
-            }
-        },
-        "required": ["key"],
-    },
-}
-
-
 def default_onboarding_checklist() -> list[dict[str, Any]]:
     return [
         {
@@ -231,8 +211,7 @@ def build_onboarding_prompt_block(user: dict[str, Any]) -> str:
             "Use caregiver-provided context to personalize gently, but do not read from it. Ask broad questions first and let the patient say things in their own words.",
             "Do not name specific relationships, partners, relatives, or sensitive details as examples unless the patient already mentioned them in this or recent conversation.",
             "Do not repeat completed items unless the patient asks or seems confused.",
-            "When an item is clearly covered, acknowledged, answered, or explicitly declined, call mark_onboarding_item_complete with that exact key.",
-            "For personal-context items, do not mark complete just because you asked. Mark complete only after the patient answers or explicitly declines.",
+            "Checklist completion is tracked by the server after the turn. Do not mention checklist tracking or tools to the patient.",
             f"Next required item: {next_item.get('key')} - {next_item.get('title')}.",
             "Incomplete items:",
             *incomplete_lines,

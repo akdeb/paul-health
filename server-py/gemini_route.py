@@ -14,8 +14,28 @@ from google.genai import types
 from loguru import logger
 
 from audio_codecs import OpusEncoder
-from onboarding import MARK_ONBOARDING_ITEM_TOOL, mark_onboarding_item_complete
+from onboarding import get_onboarding_state, mark_onboarding_item_complete
 from session import SessionState, add_conversation, get_device_info
+
+
+ASSISTANT_COVERED_ONBOARDING_KEYS = {
+    "identity_and_role",
+    "ai_disclosure",
+    "conversation_capability",
+    "proactive_checkins",
+    "reminders_and_day_context",
+    "how_to_interact",
+    "escape_hatches",
+    "acknowledge_weirdness",
+    "close_intro",
+}
+
+USER_ANSWERED_ONBOARDING_KEYS = {
+    "preferred_name",
+    "important_people",
+    "interests",
+    "emotional_checkin",
+}
 
 
 def _append_transcription_update(current: str, update: str) -> str:
@@ -44,6 +64,44 @@ def _server_content_generation_complete(server_content: Any) -> bool:
         getattr(server_content, "generation_complete", False)
         or getattr(server_content, "generationComplete", False)
     )
+
+
+def _user_answer_satisfies_onboarding_item(key: str, transcript: str) -> bool:
+    text = transcript.strip().lower()
+    if not text or text in {"<noise>", "noise", ".", "hello", "hi", "hey", "yo"}:
+        return False
+
+    if key == "emotional_checkin":
+        feeling_markers = {
+            "feel",
+            "feeling",
+            "good",
+            "fine",
+            "alright",
+            "all right",
+            "okay",
+            "ok",
+            "well",
+            "grand",
+            "bad",
+            "sad",
+            "happy",
+            "tired",
+            "rough",
+            "anxious",
+            "stressed",
+            "terrible",
+            "great",
+            "not bad",
+            "not great",
+            "rather not",
+            "don't want",
+            "dont want",
+            "no pressure",
+        }
+        return any(marker in text for marker in feeling_markers)
+
+    return len(text) >= 2
 
 
 def _build_gemini_tools() -> list[types.Tool]:
@@ -79,7 +137,6 @@ def _build_gemini_tools() -> list[types.Tool]:
                         "required": ["reason"],
                     },
                 },
-                MARK_ONBOARDING_ITEM_TOOL,
             ]
         ),
         types.Tool(google_search=types.GoogleSearch()),
@@ -231,33 +288,56 @@ class GeminiDirectRunner:
                         response={"output": f"Call ended: {reason}"},
                     )
                 )
-            elif function_call.name == "mark_onboarding_item_complete":
-                key = str((function_call.args or {}).get("key") or "").strip()
-                try:
-                    update_result = mark_onboarding_item_complete(
-                        self._session.supabase,
-                        self._session.user,
-                        key,
-                    )
-                    result = {
-                        **update_result,
-                        "output": (
-                            "Checklist updated. Do not repeat any sentence you already said "
-                            "in this turn. If the patient has already heard the response, stop."
-                        ),
-                    }
-                except Exception as exc:
-                    result = {"success": False, "error": str(exc), "key": key}
-                responses.append(
-                    types.FunctionResponse(
-                        id=function_call.id,
-                        name="mark_onboarding_item_complete",
-                        response=result,
-                    )
-                )
 
         if responses:
             await self._session_handle.send_tool_response(function_responses=responses)
+
+    def _mark_next_onboarding_item_complete(self, key: str) -> bool:
+        try:
+            mark_onboarding_item_complete(
+                self._session.supabase,
+                self._session.user,
+                key,
+            )
+            logger.info("Marked onboarding item complete: {}", key)
+            return True
+        except Exception as exc:
+            logger.warning("Failed to mark onboarding item {} complete: {}", key, exc)
+            return False
+
+    def _sync_onboarding_after_turn(
+        self,
+        *,
+        user_transcript: str,
+        assistant_transcript: str,
+    ) -> None:
+        """Advance onboarding after speech is finished, without using Live tool calls."""
+        user_spoke = bool(user_transcript.strip())
+        assistant_spoke = bool(assistant_transcript.strip())
+        if not user_spoke and not assistant_spoke:
+            return
+
+        while True:
+            state = get_onboarding_state(self._session.user)
+            if not state["active"]:
+                return
+
+            key = state.get("next_key")
+            if key in ASSISTANT_COVERED_ONBOARDING_KEYS and assistant_spoke:
+                if not self._mark_next_onboarding_item_complete(str(key)):
+                    return
+                continue
+
+            if (
+                key in USER_ANSWERED_ONBOARDING_KEYS
+                and user_spoke
+                and _user_answer_satisfies_onboarding_item(str(key), user_transcript)
+            ):
+                if not self._mark_next_onboarding_item_complete(str(key)):
+                    return
+                continue
+
+            return
 
     async def _run_receive_loop(self) -> None:
         assert self._session_handle is not None
@@ -304,12 +384,18 @@ class GeminiDirectRunner:
                         await self._send_response_complete()
                         sent_response_created = False
 
+                        completed_user_transcript = user_transcript
+                        completed_assistant_transcript = assistant_transcript
                         if user_transcript:
                             await self._persist_user_transcript(user_transcript)
-                            user_transcript = ""
                         if assistant_transcript:
                             await self._persist_assistant_transcript(assistant_transcript)
-                            assistant_transcript = ""
+                        self._sync_onboarding_after_turn(
+                            user_transcript=completed_user_transcript,
+                            assistant_transcript=completed_assistant_transcript,
+                        )
+                        user_transcript = ""
+                        assistant_transcript = ""
 
                 if message.tool_call:
                     await self._handle_tool_call(message.tool_call)

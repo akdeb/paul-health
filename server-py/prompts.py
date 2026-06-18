@@ -216,33 +216,6 @@ def _build_opening_mode_instruction(
     )
 
 
-def _build_onboarding_guidance(engine_state: dict[str, Any]) -> str:
-    if not engine_state["active"]:
-        return ""
-
-    next_item = engine_state.get("next_item") or {}
-    return (
-        "ONBOARDING CHECKLIST MODE:\n"
-        "The patient still has required onboarding items to complete.\n"
-        "The next incomplete onboarding item is the main goal of this turn.\n"
-        "Do not enter normal open-ended conversation until all onboarding checklist items are complete.\n"
-        "Do not dump the whole onboarding in one monologue.\n"
-        "Handle only one item at a time.\n"
-        "One question at a time.\n"
-        "Offer a short example reply when you ask something personal.\n"
-        "Offer an escape hatch such as 'no pressure' or 'we can come back to it'.\n"
-        "Reflect the answer back briefly so the patient feels heard.\n"
-        "If the patient digresses, respond briefly and then come back to the checklist.\n"
-        "Never say the same sentence, acknowledgement, or question twice in one response.\n"
-        "If you reflect an answer, reflect it once, then move on.\n"
-        "Use caregiver context carefully: do not name specific relationships or sensitive details as examples unless the patient already mentioned them in this or recent conversation.\n"
-        "Use mark_onboarding_item_complete only after the item has actually been covered, answered, acknowledged, or explicitly declined.\n"
-        "Be direct, warm, grounded, and a bit nudging.\n"
-        "Never be patronising.\n"
-        f"Next item: {next_item.get('key')} - {next_item.get('title')}."
-    )
-
-
 def _build_onboarding_stage_guidance(engine_state: dict[str, Any]) -> str:
     stage = engine_state["stage"]
     if stage == "first_contact":
@@ -269,7 +242,8 @@ def _build_onboarding_stage_guidance(engine_state: dict[str, Any]) -> str:
     if stage == "close_onboarding":
         return (
             "ONBOARDING STAGE: close onboarding.\n"
-            "Briefly close the intro and hand off to normal conversation."
+            "Briefly close the intro and hand off to normal conversation.\n"
+            "Say the closing once only. Do not restate it in a second wording."
         )
     return ""
 
@@ -448,7 +422,6 @@ def create_first_message(
         "Use the personality's first_message_prompt only as tone/style guidance. "
         "It is not a script and must not be repeated verbatim across sessions."
     )
-    early_days_guidance = _build_onboarding_guidance(engine_state)
     early_days_stage_guidance = _build_onboarding_stage_guidance(engine_state)
     first_contact_script = _build_first_contact_script(user)
     if current_job:
@@ -457,7 +430,6 @@ def create_first_message(
             for part in [
                 opening_mode_instruction,
                 style_guidance,
-                early_days_guidance,
                 early_days_stage_guidance,
                 (
                     "For a scheduled activity, keep the opening especially short and lead with the activity. "
@@ -481,7 +453,6 @@ def create_first_message(
             for part in [
                 opening_mode_instruction,
                 style_guidance,
-                early_days_guidance,
                 early_days_stage_guidance,
                 f"STYLE GUIDANCE:\n{base_prompt}" if base_prompt else "",
                 last_topic_hint,
@@ -495,7 +466,6 @@ def create_first_message(
             part
             for part in [
                 style_guidance,
-                early_days_guidance,
                 early_days_stage_guidance,
                 first_contact_script,
                 f"STYLE GUIDANCE:\n{base_prompt}" if base_prompt else "",
@@ -508,7 +478,6 @@ def create_first_message(
         for part in [
             opening_mode_instruction,
             style_guidance,
-            early_days_guidance,
             early_days_stage_guidance,
             f"STYLE GUIDANCE:\n{base_prompt}" if base_prompt else "",
         ]
@@ -569,6 +538,7 @@ def create_system_prompt(
                 "CONVERSATION ENGINE:\n"
                 "Normal conversation rules apply only after the onboarding checklist is complete.\n"
                 "If onboarding is incomplete, follow the onboarding checklist block first and use this section only for style and continuity.\n"
+                "Do not satisfy multiple phrasings of the same instruction. If two instructions ask for the same idea, say it once.\n"
                 "Sound like an intelligent conversationalist: acknowledge whether it has been hours, days, weeks, or months since the last chat before diving into a new topic.\n"
                 "If there is chat history, continue from it naturally.\n"
                 "Do not keep restarting the relationship.\n"
