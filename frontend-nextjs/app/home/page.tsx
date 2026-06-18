@@ -7,13 +7,15 @@ import Link from "next/link";
 import { CalendarClock, Clock3, MessageSquareText, PhoneCall, ShieldCheck } from "lucide-react";
 import HomeConversationChart from "@/app/components/HomeConversationChart";
 import { getCareActivitiesByPatientId } from "@/db/careActivities";
+import OnboardingChecklistWidget from "@/app/components/OnboardingChecklistWidget";
+import { getOnboardingChecklistState } from "@/lib/onboarding";
 
 export const revalidate = 0;
 export const dynamic = "force-dynamic";
 
 const formatRelativeTime = (timestamp?: string) => {
     if (!timestamp) {
-        return "No activity yet";
+        return "None";
     }
 
     const diffMs = Date.now() - new Date(timestamp).getTime();
@@ -117,6 +119,7 @@ export default async function Home() {
     );
     const conversationTurnsToday = conversationRows?.length ?? 0;
     const talkTimeToday = todaySessions.reduce((total, action) => total + (action.session_time ?? 0), 0);
+    const onboardingState = getOnboardingChecklistState(dbUser.patient?.checklist);
 
     const chartData = Array.from({ length: 7 }, (_, index) => {
         const day = new Date(startOfRange);
@@ -182,6 +185,17 @@ export default async function Home() {
                 
             </section>
 
+            {!onboardingState.complete ? (
+                <section>
+                    <OnboardingChecklistWidget
+                        incomplete={onboardingState.incomplete}
+                        completedCount={onboardingState.completedCount}
+                        totalCount={onboardingState.totalCount}
+                        complete={onboardingState.complete}
+                    />
+                </section>
+            ) : null}
+
             <section className="grid gap-4 lg:grid-cols-[minmax(0,1.4fr)_minmax(0,1fr)]">
                 <HomeConversationChart data={chartData} />
                 <FeatureCard
@@ -197,6 +211,17 @@ export default async function Home() {
                         </div>
                 </FeatureCard>
             </section>
+
+            {onboardingState.complete ? (
+                <section>
+                    <OnboardingChecklistWidget
+                        incomplete={onboardingState.incomplete}
+                        completedCount={onboardingState.completedCount}
+                        totalCount={onboardingState.totalCount}
+                        complete={onboardingState.complete}
+                    />
+                </section>
+            ) : null}
 
             <section className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
                 {overviewStats.map((item) => (

@@ -223,11 +223,13 @@ def build_onboarding_prompt_block(user: dict[str, Any]) -> str:
     return "\n".join(
         [
             "ONBOARDING CHECKLIST:",
-            "The patient has not completed onboarding yet. Prioritize completing these required items before drifting into normal chat.",
+            "The patient has not completed onboarding yet. The checklist is the active conversation plan.",
+            "Do not enter the normal conversation flow until every checklist item is complete.",
             "Do one onboarding item at a time. Do not dump the whole onboarding flow.",
             "If the patient digresses, respond naturally and briefly, then steer back to the next incomplete onboarding item when it is not awkward.",
             "Ask only one question at a time. Offer a short example reply when asking something personal. Always offer an escape hatch.",
             "Reflect the patient's answer briefly before moving on.",
+            "Move through the checklist in order. The NEXT item has priority over all pending items.",
             "Do not repeat completed items unless the patient asks or seems confused.",
             "When an item is clearly covered, acknowledged, answered, or explicitly declined, call mark_onboarding_item_complete with that exact key.",
             "For personal-context items, do not mark complete just because you asked. Mark complete only after the patient answers or explicitly declines.",

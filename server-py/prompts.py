@@ -113,6 +113,15 @@ def _build_opening_mode_instruction(
     hours_since_last = _hours_since_last_conversation(chat_history)
 
     if current_job:
+        if onboarding_state and onboarding_state.get("active"):
+            return (
+                "OPENING MODE: scheduled activity with onboarding still incomplete.\n"
+                "Open directly into the scheduled activity in 1-2 short sentences.\n"
+                "Do not give a generic greeting.\n"
+                "Do not introduce yourself or explain that you are an AI before the activity.\n"
+                "After the scheduled activity has clearly started, return to the next incomplete onboarding checklist item when it fits.\n"
+                "Do not treat the session as normal open-ended conversation until onboarding is complete."
+            )
         return (
             "OPENING MODE: scheduled activity.\n"
             "Open directly into the scheduled activity in 1-2 short sentences.\n"
@@ -174,7 +183,8 @@ def _build_onboarding_guidance(engine_state: dict[str, Any]) -> str:
     return (
         "ONBOARDING CHECKLIST MODE:\n"
         "The patient still has required onboarding items to complete.\n"
-        "Prioritize the next incomplete onboarding item before normal conversation.\n"
+        "The next incomplete onboarding item is the main goal of this turn.\n"
+        "Do not enter normal open-ended conversation until all onboarding checklist items are complete.\n"
         "Do not dump the whole onboarding in one monologue.\n"
         "Handle only one item at a time.\n"
         "One question at a time.\n"
@@ -511,6 +521,8 @@ def create_system_prompt(
             ),
             (
                 "CONVERSATION ENGINE:\n"
+                "Normal conversation rules apply only after the onboarding checklist is complete.\n"
+                "If onboarding is incomplete, follow the onboarding checklist block first and use this section only for style and continuity.\n"
                 "If there is chat history, continue from it naturally.\n"
                 "Do not keep restarting the relationship.\n"
                 "Do not repeat the same generic opening line every session.\n"

@@ -97,6 +97,31 @@ def get_user_by_email(supabase: Client, email: str) -> IUser:
     return response.data[0]
 
 
+def refresh_patient_checklist(supabase: Client, user: IUser, email: str | None = None) -> None:
+    patient = user.get("patient") or {}
+    patient_id = patient.get("patient_id") or user.get("patient_id")
+    if not patient_id:
+        return
+
+    try:
+        response = (
+            supabase.table("patients")
+            .select("checklist")
+            .eq("patient_id", patient_id)
+            .limit(1)
+            .execute()
+        )
+        if not response.data:
+            return
+
+        patient["checklist"] = response.data[0].get("checklist")
+        user["patient"] = patient
+        if email:
+            set_cached_user_context(email, user=user)
+    except Exception as exc:
+        logger.warning("Failed to refresh patient checklist: {}", exc)
+
+
 def authenticate_user(supabase: Client, auth_token: str) -> IUser:
     jwt_secret = os.getenv("JWT_SECRET_KEY")
     if not jwt_secret:
@@ -397,6 +422,8 @@ def build_session_state(
         user = authenticate_user(supabase, auth_token)
         patient_photos = []
         set_cached_user_context(email, user=user)
+
+    refresh_patient_checklist(supabase, user, email)
 
     action_type: ActionTransportType = "device_chat" if transport_kind == "esp32" else "web_chat"
     job_id = normalize_optional_uuid_header(websocket.headers.get("x-job-id"))
