@@ -39,6 +39,13 @@ def _append_transcription_update(current: str, update: str) -> str:
     return f"{current_stripped}{separator}{text}"
 
 
+def _server_content_generation_complete(server_content: Any) -> bool:
+    return bool(
+        getattr(server_content, "generation_complete", False)
+        or getattr(server_content, "generationComplete", False)
+    )
+
+
 def _build_gemini_tools() -> list[types.Tool]:
     return [
         types.Tool(
@@ -263,12 +270,9 @@ class GeminiDirectRunner:
                 if self._closed:
                     return
 
-                if message.tool_call:
-                    await self._handle_tool_call(message.tool_call)
-                    continue
+                server_content = message.server_content
 
-                if message.server_content:
-                    server_content = message.server_content
+                if server_content:
 
                     if server_content.input_transcription and server_content.input_transcription.text:
                         user_transcript = _append_transcription_update(
@@ -282,18 +286,19 @@ class GeminiDirectRunner:
                             server_content.output_transcription.text,
                         )
 
-                    if message.data:
-                        if not sent_response_created:
-                            sent_response_created = True
-                            await self._send_response_created()
-                        await self._send_audio_bytes(message.data)
+                if message.data:
+                    if not sent_response_created:
+                        sent_response_created = True
+                        await self._send_response_created()
+                    await self._send_audio_bytes(message.data)
 
+                if server_content:
                     if server_content.interrupted:
                         sent_response_created = False
                         if self._opus_encoder is not None:
                             self._opus_encoder.reset()
 
-                    if server_content.turn_complete:
+                    if _server_content_generation_complete(server_content):
                         if not sent_response_created and assistant_transcript:
                             await self._send_response_created()
                         await self._send_response_complete()
@@ -305,6 +310,9 @@ class GeminiDirectRunner:
                         if assistant_transcript:
                             await self._persist_assistant_transcript(assistant_transcript)
                             assistant_transcript = ""
+
+                if message.tool_call:
+                    await self._handle_tool_call(message.tool_call)
 
     async def _run_client_loop(self) -> None:
         assert self._session_handle is not None
