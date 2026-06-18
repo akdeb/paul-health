@@ -59,7 +59,7 @@ export default function ActionTranscriptView({
           className="inline-flex items-center gap-2 text-sm text-gray-500 transition hover:text-gray-900"
         >
           <ArrowLeft className="h-4 w-4" />
-          Back to actions
+          Back to chat history
         </Link>
         <div className="rounded-3xl bg-white px-6 py-5">
           <div className="flex flex-wrap items-center gap-3">
