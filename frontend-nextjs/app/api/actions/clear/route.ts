@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
 
-import { clearUserChatHistoryCache, setUserContextCache } from "@/lib/cache";
 import { getUserById } from "@/db/users";
 import { createDefaultOnboardingChecklist } from "@/lib/onboarding";
 import { createClient } from "@/utils/supabase/server";
@@ -45,12 +44,6 @@ export async function DELETE() {
         { status: 500 },
       );
     }
-  }
-
-  await clearUserChatHistoryCache(dbUser.user_id);
-  const refreshedUser = await getUserById(supabase, dbUser.user_id);
-  if (user.email && refreshedUser) {
-    await setUserContextCache(user.email, refreshedUser);
   }
 
   return NextResponse.json({ success: true });

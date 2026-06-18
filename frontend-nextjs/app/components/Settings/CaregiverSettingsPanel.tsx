@@ -41,16 +41,6 @@ export default function CaregiverSettingsPanel({
     setLanguageState(selectedUser.language_code ?? "en-US");
   }, [selectedUser.language_code, selectedUser.name]);
 
-  const invalidateUserContextCache = async () => {
-    const response = await fetch("/api/cache/user-context", {
-      method: "POST",
-    });
-
-    if (!response.ok) {
-      throw new Error("Failed to invalidate user context cache");
-    }
-  };
-
   const saveCaregiverSettings = async () => {
     setIsSaving(true);
     try {
@@ -62,7 +52,6 @@ export default function CaregiverSettingsPanel({
         },
         selectedUser.user_id,
       );
-      await invalidateUserContextCache();
       toast({
         description: "Caregiver settings saved.",
       });

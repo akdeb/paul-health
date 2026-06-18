@@ -9,7 +9,6 @@ import json
 import os
 import time
 from dataclasses import dataclass, field
-from datetime import datetime
 from typing import Any, Literal
 
 from fastapi import WebSocket
@@ -24,14 +23,7 @@ from app_types import (
     IPatientPhotoContext,
     IUser,
 )
-from cache import (
-    append_cached_chat_history,
-    get_cached_chat_history,
-    get_cached_user_context,
-    set_cached_chat_history,
-    set_cached_user_context,
-)
-from prompts import compose_chat_history, create_first_message, create_system_prompt
+from prompts import create_first_message, create_system_prompt
 
 
 def _base64url_decode(value: str) -> bytes:
@@ -97,31 +89,6 @@ def get_user_by_email(supabase: Client, email: str) -> IUser:
     return response.data[0]
 
 
-def refresh_patient_checklist(supabase: Client, user: IUser, email: str | None = None) -> None:
-    patient = user.get("patient") or {}
-    patient_id = patient.get("patient_id") or user.get("patient_id")
-    if not patient_id:
-        return
-
-    try:
-        response = (
-            supabase.table("patients")
-            .select("checklist")
-            .eq("patient_id", patient_id)
-            .limit(1)
-            .execute()
-        )
-        if not response.data:
-            return
-
-        patient["checklist"] = response.data[0].get("checklist")
-        user["patient"] = patient
-        if email:
-            set_cached_user_context(email, user=user)
-    except Exception as exc:
-        logger.warning("Failed to refresh patient checklist: {}", exc)
-
-
 def authenticate_user(supabase: Client, auth_token: str) -> IUser:
     jwt_secret = os.getenv("JWT_SECRET_KEY")
     if not jwt_secret:
@@ -132,18 +99,6 @@ def authenticate_user(supabase: Client, auth_token: str) -> IUser:
     if not email:
         raise RuntimeError("JWT payload missing email")
     return get_user_by_email(supabase, email)
-
-
-def get_email_from_auth_token(auth_token: str) -> str:
-    jwt_secret = os.getenv("JWT_SECRET_KEY")
-    if not jwt_secret:
-        raise RuntimeError("JWT_SECRET_KEY not configured")
-
-    payload = verify_hs256_jwt(auth_token, jwt_secret)
-    email = payload.get("email")
-    if not email:
-        raise RuntimeError("JWT payload missing email")
-    return str(email)
 
 
 def get_chat_history(
@@ -302,22 +257,6 @@ def add_conversation(
         .execute()
     )
 
-    if user_id:
-        append_cached_chat_history(
-            user_id,
-            [
-                {
-                    "conversation_id": "",
-                    "role": speaker,
-                    "content": text,
-                    "is_sensitive": False,
-                    "action_id": action_id,
-                    "metadata": None,
-                    "created_at": datetime.utcnow().isoformat() + "+00:00",
-                }
-            ],
-        )
-
 
 def update_action_session_time(
     supabase: Client,
@@ -413,17 +352,8 @@ def build_session_state(
         raise RuntimeError("Missing authorization token")
 
     supabase = get_supabase_client(auth_token)
-    email = get_email_from_auth_token(auth_token)
-    cached_user_context = get_cached_user_context(email)
-    if cached_user_context:
-        user = cached_user_context["user"]
-        patient_photos = []
-    else:
-        user = authenticate_user(supabase, auth_token)
-        patient_photos = []
-        set_cached_user_context(email, user=user)
-
-    refresh_patient_checklist(supabase, user, email)
+    user = authenticate_user(supabase, auth_token)
+    patient_photos = []
 
     action_type: ActionTransportType = "device_chat" if transport_kind == "esp32" else "web_chat"
     job_id = normalize_optional_uuid_header(websocket.headers.get("x-job-id"))
@@ -445,10 +375,7 @@ def build_session_state(
         job_id=job_id,
     )
     prior_action_count = max(0, get_prior_action_count(supabase, user["user_id"], action_type) - 1)
-    chat_history = get_cached_chat_history(user["user_id"])
-    if chat_history is None:
-        chat_history = get_chat_history(supabase, user["user_id"], action_type)
-        set_cached_chat_history(user["user_id"], chat_history)
+    chat_history = get_chat_history(supabase, user["user_id"], action_type)
 
     return SessionState(
         transport_kind=transport_kind,

@@ -145,16 +145,6 @@ export default function PatientSettingsPanel({
     setDraftPhotoCaption("");
   };
 
-  const invalidateUserContextCache = async () => {
-    const response = await fetch("/api/cache/user-context", {
-      method: "POST",
-    });
-
-    if (!response.ok) {
-      throw new Error("Failed to invalidate user context cache");
-    }
-  };
-
   const savePatientSettings = async () => {
     if (!patient?.patient_id) {
       toast({
@@ -187,21 +177,11 @@ export default function PatientSettingsPanel({
       return;
     }
 
-    try {
-      await invalidateUserContextCache();
-      toast({
-        description: "Patient settings saved.",
-      });
-      router.refresh();
-    } catch (error) {
-      console.error("Error invalidating patient cache:", error);
-      toast({
-        description: "Patient saved, but cache refresh failed.",
-        variant: "destructive",
-      });
-    } finally {
-      setIsSaving(false);
-    }
+    toast({
+      description: "Patient settings saved.",
+    });
+    router.refresh();
+    setIsSaving(false);
   };
 
   const savePhoto = async () => {

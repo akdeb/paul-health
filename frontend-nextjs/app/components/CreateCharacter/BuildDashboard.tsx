@@ -128,16 +128,6 @@ const SettingsDashboard: React.FC<SettingsDashboardProps> = ({
     setFormData((prev) => ({ ...prev, [field]: optionValue }));
   };
 
-  const invalidateUserContextCache = async () => {
-    const response = await fetch("/api/cache/user-context", {
-      method: "POST",
-    });
-
-    if (!response.ok) {
-      throw new Error("Failed to invalidate user context cache");
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     if (
@@ -173,7 +163,6 @@ const SettingsDashboard: React.FC<SettingsDashboardProps> = ({
         voice_prompt: formData.voiceInstructions.trim(),
         first_message_prompt: formData.firstMessagePrompt.trim(),
       });
-      await invalidateUserContextCache();
       toast({
         title: "Agent updated",
         description: "Agent settings saved to personalities.",

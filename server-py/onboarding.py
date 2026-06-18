@@ -6,10 +6,6 @@ from copy import deepcopy
 from datetime import datetime, timezone
 from typing import Any
 
-from loguru import logger
-
-from cache import set_cached_user_context
-
 ONBOARDING_CHECKLIST_COLUMN = "checklist"
 
 ONBOARDING_ITEMS: list[dict[str, Any]] = [
@@ -229,7 +225,11 @@ def build_onboarding_prompt_block(user: dict[str, Any]) -> str:
             "If the patient digresses, respond naturally and briefly, then steer back to the next incomplete onboarding item when it is not awkward.",
             "Ask only one question at a time. Offer a short example reply when asking something personal. Always offer an escape hatch.",
             "Reflect the patient's answer briefly before moving on.",
+            "Never repeat the same sentence, acknowledgement, or question twice in a single response.",
+            "If the patient answered the previous item, acknowledge it once only, then move to the NEXT item.",
             "Move through the checklist in order. The NEXT item has priority over all pending items.",
+            "Use caregiver-provided context to personalize gently, but do not read from it. Ask broad questions first and let the patient say things in their own words.",
+            "Do not name specific relationships, partners, relatives, or sensitive details as examples unless the patient already mentioned them in this or recent conversation.",
             "Do not repeat completed items unless the patient asks or seems confused.",
             "When an item is clearly covered, acknowledged, answered, or explicitly declined, call mark_onboarding_item_complete with that exact key.",
             "For personal-context items, do not mark complete just because you asked. Mark complete only after the patient answers or explicitly declines.",
@@ -275,12 +275,6 @@ def mark_onboarding_item_complete(
         patient[ONBOARDING_CHECKLIST_COLUMN] = checklist
 
     user["patient"] = patient
-    email = user.get("email")
-    if email:
-        try:
-            set_cached_user_context(str(email), user=user)
-        except Exception as exc:
-            logger.warning("Failed to refresh cached onboarding context: {}", exc)
 
     return {
         "success": True,

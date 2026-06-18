@@ -56,6 +56,43 @@ def _hours_since_last_conversation(conversations: list[IConversation]) -> float 
     return max(0.0, (datetime.now(last_timestamp.tzinfo) - last_timestamp).total_seconds() / 3600.0)
 
 
+def _build_reentry_acknowledgement_instruction(
+    chat_history: list[IConversation],
+) -> str:
+    hours_since_last = _hours_since_last_conversation(chat_history)
+    if hours_since_last is None:
+        return (
+            "RE-ENTRY CONTEXT:\n"
+            "No prior conversation is available. Do not pretend you remember one."
+        )
+
+    if hours_since_last <= 2:
+        label = "within the last couple of hours"
+        example = "We were just talking a little while ago."
+    elif hours_since_last <= 24:
+        label = "earlier today"
+        example = "It's been a few hours."
+    elif hours_since_last <= 72:
+        label = "a day or two ago"
+        example = "It's been a day or two."
+    elif hours_since_last <= 24 * 14:
+        label = "a few days ago"
+        example = "It's been a few days."
+    elif hours_since_last <= 24 * 60:
+        label = "a few weeks ago"
+        example = "It's been a few weeks."
+    else:
+        label = "a few months or more since the last chat"
+        example = "It's been a while."
+
+    return (
+        "RE-ENTRY CONTEXT:\n"
+        f"The last conversation was {label}.\n"
+        f"Acknowledge that naturally before moving on, in one short clause. Example style: \"{example}\"\n"
+        "Do not overdo it. Do not apologize for the gap unless the patient brings it up."
+    )
+
+
 def _build_engine_state(
     user: IUser,
     *,
@@ -111,11 +148,13 @@ def _build_opening_mode_instruction(
     onboarding_state: dict[str, Any] | None = None,
 ) -> str:
     hours_since_last = _hours_since_last_conversation(chat_history)
+    reentry_instruction = _build_reentry_acknowledgement_instruction(chat_history)
 
     if current_job:
         if onboarding_state and onboarding_state.get("active"):
             return (
                 "OPENING MODE: scheduled activity with onboarding still incomplete.\n"
+                f"{reentry_instruction}\n"
                 "Open directly into the scheduled activity in 1-2 short sentences.\n"
                 "Do not give a generic greeting.\n"
                 "Do not introduce yourself or explain that you are an AI before the activity.\n"
@@ -136,8 +175,10 @@ def _build_opening_mode_instruction(
         next_item = onboarding_state.get("next_item") or {}
         return (
             "OPENING MODE: onboarding checklist continuation.\n"
-            "Open with the next incomplete onboarding item, not generic chatter.\n"
-            "Keep it short and spoken.\n"
+            f"{reentry_instruction}\n"
+            "If this is not first contact, first acknowledge the time gap naturally, then continue with the next incomplete onboarding item.\n"
+            "Keep it short and spoken. It should feel like a person picking the thread back up.\n"
+            "Do not repeat the same acknowledgement, reflection, or question twice in the same response.\n"
             "If this is the first contact, follow the first-contact script. Otherwise do only one small onboarding beat.\n"
             f"Next item: {next_item.get('key')} - {next_item.get('title')}."
         )
@@ -192,6 +233,9 @@ def _build_onboarding_guidance(engine_state: dict[str, Any]) -> str:
         "Offer an escape hatch such as 'no pressure' or 'we can come back to it'.\n"
         "Reflect the answer back briefly so the patient feels heard.\n"
         "If the patient digresses, respond briefly and then come back to the checklist.\n"
+        "Never say the same sentence, acknowledgement, or question twice in one response.\n"
+        "If you reflect an answer, reflect it once, then move on.\n"
+        "Use caregiver context carefully: do not name specific relationships or sensitive details as examples unless the patient already mentioned them in this or recent conversation.\n"
         "Use mark_onboarding_item_complete only after the item has actually been covered, answered, acknowledged, or explicitly declined.\n"
         "Be direct, warm, grounded, and a bit nudging.\n"
         "Never be patronising.\n"
@@ -219,7 +263,8 @@ def _build_onboarding_stage_guidance(engine_state: dict[str, Any]) -> str:
             "ONBOARDING STAGE: context building.\n"
             "No introductions.\n"
             "Ask the next personal-context question naturally.\n"
-            "Offer an example reply and an escape hatch."
+            "Offer an example reply and an escape hatch.\n"
+            "Ask broadly first. Do not lead with caregiver-provided names or relationships unless the patient has already brought them up."
         )
     if stage == "close_onboarding":
         return (
@@ -501,6 +546,7 @@ def create_system_prompt(
         "This is not the very first interaction, so do not fall back to a generic intro."
     )
     scheduled_job_section = _build_scheduled_job_system_guidance(user, current_job)
+    reentry_section = _build_reentry_acknowledgement_instruction(chat_history)
     return "\n\n".join(
         [
             _format_context_block(
@@ -523,14 +569,17 @@ def create_system_prompt(
                 "CONVERSATION ENGINE:\n"
                 "Normal conversation rules apply only after the onboarding checklist is complete.\n"
                 "If onboarding is incomplete, follow the onboarding checklist block first and use this section only for style and continuity.\n"
+                "Sound like an intelligent conversationalist: acknowledge whether it has been hours, days, weeks, or months since the last chat before diving into a new topic.\n"
                 "If there is chat history, continue from it naturally.\n"
                 "Do not keep restarting the relationship.\n"
                 "Do not repeat the same generic opening line every session.\n"
+                "Never duplicate the same sentence or question in a single response.\n"
                 "Do not keep repeating your name, what you are, or that you are an AI unless the patient explicitly asks or is clearly confused.\n"
                 "For returning chats, use the recent transcript to decide whether to follow up, acknowledge, continue a topic, or gently re-engage.\n"
                 "For scheduled chats, open directly into the activity in 1-2 short sentences without a generic preamble.\n"
                 "Be proactive and gently nudging rather than passive. Offer a concrete next direction instead of broad generic chatter."
             ),
+            reentry_section,
             onboarding_section,
             first_contact_section,
             scheduled_job_section,

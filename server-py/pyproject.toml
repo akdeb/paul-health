@@ -7,7 +7,6 @@ dependencies = [
     "pipecat-ai[webrtc,websocket,silero,deepgram,openai,cartesia,google,grok,runner]",
     "pipecat-ai-cli",
     "supabase>=2.28.3",
-    "redis>=7.4.0",
 ]
 
 [dependency-groups]

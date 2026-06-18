@@ -19,7 +19,7 @@ RUN pip install --no-cache-dir uv
 COPY pyproject.toml uv.lock ./
 RUN uv sync --frozen --no-dev
 
-COPY server.py session.py prompts.py onboarding.py app_types.py audio_codecs.py gemini_route.py cache.py ./
+COPY server.py session.py prompts.py onboarding.py app_types.py audio_codecs.py gemini_route.py ./
 
 EXPOSE 7860
 
