@@ -17,6 +17,28 @@ from audio_codecs import OpusEncoder
 from onboarding import MARK_ONBOARDING_ITEM_TOOL, mark_onboarding_item_complete
 from session import SessionState, add_conversation, get_device_info
 
+
+def _append_transcription_update(current: str, update: str) -> str:
+    """Merge Gemini transcription updates without duplicating repeated final text."""
+    text = update.strip()
+    if not text:
+        return current
+
+    if not current:
+        return text
+
+    current_stripped = current.strip()
+    if text == current_stripped or current_stripped.endswith(text):
+        return current_stripped
+
+    # Some Live transcription updates are cumulative rather than delta-like.
+    if text.startswith(current_stripped):
+        return text
+
+    separator = "" if current_stripped.endswith((" ", "\n")) or text.startswith((" ", "\n")) else " "
+    return f"{current_stripped}{separator}{text}"
+
+
 def _build_gemini_tools() -> list[types.Tool]:
     return [
         types.Tool(
@@ -205,11 +227,18 @@ class GeminiDirectRunner:
             elif function_call.name == "mark_onboarding_item_complete":
                 key = str((function_call.args or {}).get("key") or "").strip()
                 try:
-                    result = mark_onboarding_item_complete(
+                    update_result = mark_onboarding_item_complete(
                         self._session.supabase,
                         self._session.user,
                         key,
                     )
+                    result = {
+                        **update_result,
+                        "output": (
+                            "Checklist updated. Do not repeat any sentence you already said "
+                            "in this turn. If the patient has already heard the response, stop."
+                        ),
+                    }
                 except Exception as exc:
                     result = {"success": False, "error": str(exc), "key": key}
                 responses.append(
@@ -226,8 +255,8 @@ class GeminiDirectRunner:
     async def _run_receive_loop(self) -> None:
         assert self._session_handle is not None
         while not self._closed:
-            assistant_transcript_parts: list[str] = []
-            user_transcript_parts: list[str] = []
+            assistant_transcript = ""
+            user_transcript = ""
             sent_response_created = False
 
             async for message in self._session_handle.receive():
@@ -242,10 +271,16 @@ class GeminiDirectRunner:
                     server_content = message.server_content
 
                     if server_content.input_transcription and server_content.input_transcription.text:
-                        user_transcript_parts.append(server_content.input_transcription.text)
+                        user_transcript = _append_transcription_update(
+                            user_transcript,
+                            server_content.input_transcription.text,
+                        )
 
                     if server_content.output_transcription and server_content.output_transcription.text:
-                        assistant_transcript_parts.append(server_content.output_transcription.text)
+                        assistant_transcript = _append_transcription_update(
+                            assistant_transcript,
+                            server_content.output_transcription.text,
+                        )
 
                     if message.data:
                         if not sent_response_created:
@@ -259,17 +294,17 @@ class GeminiDirectRunner:
                             self._opus_encoder.reset()
 
                     if server_content.turn_complete:
-                        if not sent_response_created and assistant_transcript_parts:
+                        if not sent_response_created and assistant_transcript:
                             await self._send_response_created()
                         await self._send_response_complete()
                         sent_response_created = False
 
-                        if user_transcript_parts:
-                            await self._persist_user_transcript("".join(user_transcript_parts))
-                            user_transcript_parts.clear()
-                        if assistant_transcript_parts:
-                            await self._persist_assistant_transcript("".join(assistant_transcript_parts))
-                            assistant_transcript_parts.clear()
+                        if user_transcript:
+                            await self._persist_user_transcript(user_transcript)
+                            user_transcript = ""
+                        if assistant_transcript:
+                            await self._persist_assistant_transcript(assistant_transcript)
+                            assistant_transcript = ""
 
     async def _run_client_loop(self) -> None:
         assert self._session_handle is not None
