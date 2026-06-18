@@ -78,7 +78,7 @@ export default function OnboardingChecklistWidget({
               }`}
             >
               <span className={statusEmojiClassName} aria-hidden="true">
-                {isIncomplete ? "⌛" : "✅"}
+                {isIncomplete ? "🟡" : "🟢"}
               </span>
               <div className="text-sm font-semibold leading-tight">
                 {task.title}
