@@ -14,7 +14,7 @@ from google.genai import types
 from loguru import logger
 
 from audio_codecs import OpusEncoder
-from memory import remember_fact
+from memory import memory_enabled, remember_fact
 from onboarding import get_onboarding_state, mark_onboarding_item_complete
 from session import SessionState, add_conversation, get_device_info
 
@@ -106,62 +106,69 @@ def _user_answer_satisfies_onboarding_item(key: str, transcript: str) -> bool:
 
 
 def _build_gemini_tools() -> list[types.Tool]:
+    function_declarations: list[dict[str, Any]] = [
+        {
+            "name": "test_function",
+            "description": (
+                "A simple test function that always returns hello world. "
+                "Use this when the user says ABRACADABRA."
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {},
+            },
+        },
+        {
+            "name": "end_call",
+            "description": (
+                "Call this if the user says bye or needs to leave or suggests they want "
+                'to end the session. Examples include "I gotta go", "I have to work", '
+                '"I have to sleep", or "I have to do something else".'
+            ),
+            "parameters": {
+                "type": "object",
+                "properties": {
+                    "reason": {
+                        "type": "string",
+                        "description": "Short reason for ending the call.",
+                    }
+                },
+                "required": ["reason"],
+            },
+        },
+    ]
+
+    # Only expose the memory tool when memory is actually configured. Dangling an
+    # unusable tool on the native-audio model makes it emit text/thought parts
+    # instead of clean audio, which stalls the conversation.
+    if memory_enabled():
+        function_declarations.append(
+            {
+                "name": "remember",
+                "description": (
+                    "Save one durable fact about the patient to long-term memory so you can "
+                    "recall it in future conversations. Use it when they share their preferred "
+                    "name, important people, interests, routines, preferences, health notes, or "
+                    "topics to avoid. Do not use it for small talk or passing details."
+                ),
+                "parameters": {
+                    "type": "object",
+                    "properties": {
+                        "fact": {
+                            "type": "string",
+                            "description": (
+                                "One concise fact in the third person, "
+                                "e.g. \"Patient's daughter Alysha visits on Sundays\"."
+                            ),
+                        }
+                    },
+                    "required": ["fact"],
+                },
+            }
+        )
+
     return [
-        types.Tool(
-            function_declarations=[
-                {
-                    "name": "test_function",
-                    "description": (
-                        "A simple test function that always returns hello world. "
-                        "Use this when the user says ABRACADABRA."
-                    ),
-                    "parameters": {
-                        "type": "object",
-                        "properties": {},
-                    },
-                },
-                {
-                    "name": "end_call",
-                    "description": (
-                        "Call this if the user says bye or needs to leave or suggests they want "
-                        'to end the session. Examples include "I gotta go", "I have to work", '
-                        '"I have to sleep", or "I have to do something else".'
-                    ),
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "reason": {
-                                "type": "string",
-                                "description": "Short reason for ending the call.",
-                            }
-                        },
-                        "required": ["reason"],
-                    },
-                },
-                {
-                    "name": "remember",
-                    "description": (
-                        "Save one durable fact about the patient to long-term memory so you can "
-                        "recall it in future conversations. Use it when they share their preferred "
-                        "name, important people, interests, routines, preferences, health notes, or "
-                        "topics to avoid. Do not use it for small talk or passing details."
-                    ),
-                    "parameters": {
-                        "type": "object",
-                        "properties": {
-                            "fact": {
-                                "type": "string",
-                                "description": (
-                                    "One concise fact in the third person, "
-                                    "e.g. \"Patient's daughter Alysha visits on Sundays\"."
-                                ),
-                            }
-                        },
-                        "required": ["fact"],
-                    },
-                },
-            ]
-        ),
+        types.Tool(function_declarations=function_declarations),
         types.Tool(google_search=types.GoogleSearch()),
     ]
 

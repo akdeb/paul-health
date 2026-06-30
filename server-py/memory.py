@@ -26,10 +26,47 @@ _memory: Any = None
 _init_attempted = False
 
 
-def _build_memory() -> Any:
+def _resolve_pg_params() -> dict[str, Any] | None:
+    """Build Postgres connection params for pgvector.
+
+    Preferred: a full `SUPABASE_DB_URL`. Otherwise derive the direct DB host from
+    the existing `SUPABASE_URL` + a `SUPABASE_DB_PASSWORD` (the database password,
+    NOT the anon/service API key -- those can't open a Postgres connection).
+    """
     db_url = os.getenv("SUPABASE_DB_URL")
-    if not db_url:
-        logger.warning("SUPABASE_DB_URL not set; patient memory disabled.")
+    if db_url:
+        p = urlparse(db_url)
+        return {
+            "dbname": p.path.lstrip("/") or "postgres",
+            "user": p.username or "postgres",
+            "password": p.password,
+            "host": p.hostname,
+            "port": p.port or 5432,
+        }
+
+    supabase_url = os.getenv("SUPABASE_URL")
+    db_password = os.getenv("SUPABASE_DB_PASSWORD")
+    if supabase_url and db_password:
+        ref = (urlparse(supabase_url).hostname or "").split(".")[0]
+        if ref:
+            return {
+                "dbname": "postgres",
+                "user": "postgres",
+                "password": db_password,
+                "host": f"db.{ref}.supabase.co",
+                "port": 5432,
+            }
+
+    return None
+
+
+def _build_memory() -> Any:
+    pg = _resolve_pg_params()
+    if not pg:
+        logger.warning(
+            "Patient memory disabled: set SUPABASE_DB_PASSWORD (with SUPABASE_URL) "
+            "or a full SUPABASE_DB_URL."
+        )
         return None
 
     api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
@@ -45,7 +82,6 @@ def _build_memory() -> Any:
         logger.warning("mem0ai not installed; patient memory disabled.")
         return None
 
-    parsed = urlparse(db_url)
     config = {
         "llm": {
             "provider": "gemini",
@@ -65,11 +101,7 @@ def _build_memory() -> Any:
                 "collection_name": os.getenv("MEM0_COLLECTION", "patient_memories"),
                 "embedding_model_dims": 768,
                 "hnsw": True,
-                "dbname": parsed.path.lstrip("/") or "postgres",
-                "user": parsed.username,
-                "password": parsed.password,
-                "host": parsed.hostname,
-                "port": parsed.port or 5432,
+                **pg,
             },
         },
     }
