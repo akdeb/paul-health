@@ -430,9 +430,17 @@ class GeminiDirectRunner:
 
                 if server_content:
                     if server_content.interrupted:
-                        sent_response_created = False
-                        if self._opus_encoder is not None:
+                        # The device's mic is off while SPEAKING, so an interruption
+                        # here is the "a word slipped in just before blue" race. If we
+                        # already flipped the device to SPEAKING, a terminal interruption
+                        # (no follow-up generation) would strand it in SPEAKING (blue)
+                        # forever -- mic closed, no audio, no COMPLETE. Send ERROR so it
+                        # drops the partial audio and returns to LISTENING.
+                        if sent_response_created:
+                            await self._send_response_error()
+                        elif self._opus_encoder is not None:
                             self._opus_encoder.reset()
+                        sent_response_created = False
 
                     if _server_content_generation_complete(server_content):
                         if not sent_response_created and assistant_transcript:
