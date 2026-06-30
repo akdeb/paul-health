@@ -62,21 +62,21 @@ export const ONBOARDING_CHECKLIST_TASKS: Array<{
     title: "Acknowledge weirdness",
     description: "Paul names that talking to a device can feel strange.",
   },
-  // {
-  //   key: "preferred_name",
-  //   title: "Ask preferred name",
-  //   description: "Paul asks what the patient likes to be called.",
-  // },
-  // {
-  //   key: "important_people",
-  //   title: "Ask important people",
-  //   description: "Paul asks who matters most in the patient's life.",
-  // },
-  // {
-  //   key: "interests",
-  //   title: "Ask interests",
-  //   description: "Paul asks what the patient enjoys.",
-  // },
+  {
+    key: "preferred_name",
+    title: "Ask preferred name",
+    description: "Paul asks what the patient likes to be called.",
+  },
+  {
+    key: "important_people",
+    title: "Ask important people",
+    description: "Paul asks who matters most in the patient's life.",
+  },
+  {
+    key: "interests",
+    title: "Ask interests",
+    description: "Paul asks what the patient enjoys.",
+  },
   {
     key: "emotional_checkin",
     title: "First emotional check-in",

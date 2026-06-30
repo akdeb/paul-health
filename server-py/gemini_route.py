@@ -14,6 +14,7 @@ from google.genai import types
 from loguru import logger
 
 from audio_codecs import OpusEncoder
+from memory import remember_fact
 from onboarding import get_onboarding_state, mark_onboarding_item_complete
 from session import SessionState, add_conversation, get_device_info
 
@@ -135,6 +136,28 @@ def _build_gemini_tools() -> list[types.Tool]:
                             }
                         },
                         "required": ["reason"],
+                    },
+                },
+                {
+                    "name": "remember",
+                    "description": (
+                        "Save one durable fact about the patient to long-term memory so you can "
+                        "recall it in future conversations. Use it when they share their preferred "
+                        "name, important people, interests, routines, preferences, health notes, or "
+                        "topics to avoid. Do not use it for small talk or passing details."
+                    ),
+                    "parameters": {
+                        "type": "object",
+                        "properties": {
+                            "fact": {
+                                "type": "string",
+                                "description": (
+                                    "One concise fact in the third person, "
+                                    "e.g. \"Patient's daughter Alysha visits on Sundays\"."
+                                ),
+                            }
+                        },
+                        "required": ["fact"],
                     },
                 },
             ]
@@ -286,6 +309,21 @@ class GeminiDirectRunner:
                         id=function_call.id,
                         name="end_call",
                         response={"output": f"Call ended: {reason}"},
+                    )
+                )
+            elif function_call.name == "remember":
+                fact = str((function_call.args or {}).get("fact") or "").strip()
+                if fact:
+                    # Mem0 add() makes Gemini calls; run off the audio path and
+                    # acknowledge immediately so generation isn't blocked.
+                    asyncio.create_task(
+                        asyncio.to_thread(remember_fact, self._session.user, fact)
+                    )
+                responses.append(
+                    types.FunctionResponse(
+                        id=function_call.id,
+                        name="remember",
+                        response={"output": "Saved." if fact else "Nothing to save."},
                     )
                 )
 

@@ -7,6 +7,7 @@ from datetime import datetime
 from typing import Any
 
 from app_types import ActionTransportType, IConversation, IJob, IUser
+from memory import memory_tool_instructions, recall_memories_block
 from onboarding import build_onboarding_prompt_block, get_onboarding_state
 
 
@@ -504,6 +505,8 @@ def create_system_prompt(
         chat_history=chat_history,
     )
     onboarding_section = build_onboarding_prompt_block(user)
+    memory_instructions = memory_tool_instructions()
+    memory_section = recall_memories_block(user)
     first_contact_section = (
         "FIRST CONTACT REQUIREMENT:\n"
         "If there is no conversation history and this is the first contact stage, your first reply should explicitly introduce Paul, honestly say that he is an AI, set expectations about check-ins and reminders, acknowledge the weirdness, and then ask one simple trust-building question.\n"
@@ -550,6 +553,8 @@ def create_system_prompt(
                 "Be proactive and gently nudging rather than passive. Offer a concrete next direction instead of broad generic chatter."
             ),
             reentry_section,
+            *([memory_instructions] if memory_instructions else []),
+            *([memory_section] if memory_section else []),
             onboarding_section,
             first_contact_section,
             scheduled_job_section,

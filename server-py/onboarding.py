@@ -82,33 +82,33 @@ ONBOARDING_ITEMS: list[dict[str, Any]] = [
         ),
         "completion": "Complete once the weirdness has been acknowledged without making a big deal of it.",
     },
-    # {
-    #     "key": "preferred_name",
-    #     "title": "Ask preferred name",
-    #     "prompt": (
-    #         "Ask what people usually call them: their known name or something else. "
-    #         "Offer an example answer and no pressure."
-    #     ),
-    #     "completion": "Complete only after the patient answers, confirms, corrects, or declines.",
-    # },
-    # {
-    #     "key": "important_people",
-    #     "title": "Ask important people",
-    #     "prompt": (
-    #         "Ask who the important people are in their life or who they see most. "
-    #         "Ask one gentle follow-up about the first person they mention."
-    #     ),
-    #     "completion": "Complete only after the patient answers or explicitly declines.",
-    # },
-    # {
-    #     "key": "interests",
-    #     "title": "Ask interests",
-    #     "prompt": (
-    #         "Ask what they enjoy: music, sport, gardening, a good film, or anything else. "
-    #         "Offer examples and keep it normal."
-    #     ),
-    #     "completion": "Complete only after the patient answers or explicitly declines.",
-    # },
+    {
+        "key": "preferred_name",
+        "title": "Ask preferred name",
+        "prompt": (
+            "Ask what people usually call them: their known name or something else. "
+            "Offer an example answer and no pressure."
+        ),
+        "completion": "Complete only after the patient answers, confirms, corrects, or declines.",
+    },
+    {
+        "key": "important_people",
+        "title": "Ask important people",
+        "prompt": (
+            "Ask who the important people are in their life or who they see most. "
+            "Ask one gentle follow-up about the first person they mention."
+        ),
+        "completion": "Complete only after the patient answers or explicitly declines.",
+    },
+    {
+        "key": "interests",
+        "title": "Ask interests",
+        "prompt": (
+            "Ask what they enjoy: music, sport, gardening, a good film, or anything else. "
+            "Offer examples and keep it normal."
+        ),
+        "completion": "Complete only after the patient answers or explicitly declines.",
+    },
     {
         "key": "emotional_checkin",
         "title": "Ask first emotional check-in",
