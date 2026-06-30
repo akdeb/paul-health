@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import json
+import os
+
 from fastapi import WebSocket
 from loguru import logger
 
@@ -24,7 +26,15 @@ from pipecat.transports.websocket.fastapi import (
     FastAPIWebsocketTransport,
 )
 
-from audio_codecs import OpusEncoder
+from audio_codecs import OpusEncoder, boost_limit_pcm16le
+
+# Loudness boost on the ESP32 speaker path (gain + tanh soft-clip limiter).
+AUDIO_OUTPUT_BOOST_ENABLED = os.getenv("AUDIO_OUTPUT_BOOST_ENABLED", "true").strip().lower() in (
+    "1",
+    "true",
+    "yes",
+)
+AUDIO_OUTPUT_GAIN_DB = float(os.getenv("AUDIO_OUTPUT_GAIN_DB", "7.0"))
 
 
 class RawPCMFrameSerializer(FrameSerializer):
@@ -114,7 +124,11 @@ class OpusWebsocketOutputTransport(FastAPIWebsocketOutputTransport):
         if self._client.is_closing or not self._client.is_connected:
             return False
 
-        for packet in self._encoder.encode(frame.audio):
+        audio = frame.audio
+        if AUDIO_OUTPUT_BOOST_ENABLED:
+            audio = boost_limit_pcm16le(audio, gain_db=AUDIO_OUTPUT_GAIN_DB)
+
+        for packet in self._encoder.encode(audio):
             await self._client.send(packet)
 
         await self._write_audio_sleep()

@@ -8,6 +8,27 @@ import av
 import numpy as np
 
 
+def boost_limit_pcm16le(pcm_bytes: bytes, gain_db: float = 7.0, ceiling: float = 0.99) -> bytes:
+    """Loudness boost with a tanh soft-clip limiter (ported from elato-local).
+
+    Applies gain, then tanh soft-clipping so the signal gets loud without harsh
+    digital clipping (tanh is ~linear for small inputs and rolls off smoothly),
+    then clamps to +/-ceiling before int16 conversion. Returns new PCM bytes.
+    """
+    if not pcm_bytes:
+        return pcm_bytes
+
+    audio = np.frombuffer(pcm_bytes, dtype=np.int16)
+    if audio.size == 0:
+        return pcm_bytes
+
+    x = audio.astype(np.float32) / 32768.0
+    x *= 10.0 ** (gain_db / 20.0)
+    y = np.tanh(x)
+    np.clip(y, -ceiling, ceiling, out=y)
+    return (y * 32767.0).astype(np.int16).tobytes()
+
+
 @dataclass
 class OpusEncoder:
     sample_rate: int = 24000

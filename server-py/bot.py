@@ -14,6 +14,7 @@ from typing import Literal
 from dotenv import load_dotenv
 from loguru import logger
 
+from audio_enhance import maybe_build_audio_enhancement
 from classic_route import build_classic_route
 from gem_live_route import build_gem_live_route
 from session import SessionState, add_conversation, get_device_info
@@ -57,6 +58,17 @@ logger.info("All components loaded successfully")
 load_dotenv(override=True)
 CURRENT_VOICE_ROUTE = os.getenv("CURRENT_VOICE_ROUTE", "classic").strip().lower()
 LISTENING_IDLE_TIMEOUT_SECONDS = float(os.getenv("LISTENING_IDLE_TIMEOUT_SECONDS", "20.0"))
+
+# Input-audio cleanup (high-pass + AGC) for quiet/noisy mic conditions.
+AUDIO_ENHANCE_ENABLED = os.getenv("AUDIO_ENHANCE_ENABLED", "true").strip().lower() in (
+    "1",
+    "true",
+    "yes",
+)
+AUDIO_ENHANCE_TARGET_RMS = float(os.getenv("AUDIO_ENHANCE_TARGET_RMS", "3000.0"))
+AUDIO_ENHANCE_MAX_GAIN = float(os.getenv("AUDIO_ENHANCE_MAX_GAIN", "8.0"))
+ESP32_INPUT_SAMPLE_RATE = int(os.getenv("ESP32_INPUT_SAMPLE_RATE", "16000"))
+BROWSER_INPUT_SAMPLE_RATE = int(os.getenv("BROWSER_INPUT_SAMPLE_RATE", "16000"))
 
 
 class RealtimeInputControlProcessor(FrameProcessor):
@@ -317,7 +329,20 @@ async def run_bot_session(
         timeout_seconds=LISTENING_IDLE_TIMEOUT_SECONDS,
         arm_on_start=not session.first_message.strip(),
     )
-    processors = [transport.input(), *route_processors]
+    input_sample_rate = (
+        ESP32_INPUT_SAMPLE_RATE if transport_kind == "esp32" else BROWSER_INPUT_SAMPLE_RATE
+    )
+    audio_enhancement = maybe_build_audio_enhancement(
+        AUDIO_ENHANCE_ENABLED,
+        sample_rate=input_sample_rate,
+        target_rms=AUDIO_ENHANCE_TARGET_RMS,
+        max_gain=AUDIO_ENHANCE_MAX_GAIN,
+    )
+
+    processors = [transport.input()]
+    if audio_enhancement is not None:
+        processors.append(audio_enhancement)
+    processors.extend(route_processors)
     if voice_route != "gem_live":
         processors.append(user_persistence)
         processors.append(assistant_persistence)

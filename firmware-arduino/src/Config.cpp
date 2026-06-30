@@ -40,7 +40,7 @@ String activeJobIdGlobal;
 volatile DeviceState deviceState = IDLE;
 
 // I2S and Audio parameters
-const uint32_t SAMPLE_RATE = 24000;
+const uint32_t SAMPLE_RATE = 48000;
 const uint32_t INPUT_SAMPLE_RATE = 16000;
 
 // ----------------- Pin Definitions -----------------
