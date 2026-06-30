@@ -172,6 +172,25 @@ def remember_fact(user: dict[str, Any], fact: str) -> None:
         logger.warning("Mem0 add failed for patient {}: {}", patient_id, exc)
 
 
+# Framing for onboarding answers so Mem0 extracts a clean fact even from a terse
+# reply ("Tom" -> "The patient likes to be called Tom"). Keys not here are skipped.
+_ONBOARDING_MEMORY_FRAMING = {
+    "preferred_name": "The patient likes to be called: {}",
+    "important_people": "Important people in the patient's life: {}",
+    "interests": "The patient enjoys / is interested in: {}",
+}
+
+
+def remember_onboarding_answer(user: dict[str, Any], key: str, answer: str) -> None:
+    """Store a memory from a completed onboarding answer. No-ops for non-memory
+    keys (e.g. emotional_checkin) or when memory is disabled. Run from a thread."""
+    template = _ONBOARDING_MEMORY_FRAMING.get(key)
+    answer = (answer or "").strip()
+    if not template or not answer:
+        return
+    remember_fact(user, template.format(answer))
+
+
 def recall_memories_block(user: dict[str, Any]) -> str:
     """Render all stored memories for this patient as a system-prompt block.
 
@@ -186,7 +205,11 @@ def recall_memories_block(user: dict[str, Any]) -> str:
         return ""
 
     try:
-        result = mem.get_all(user_id=patient_id)
+        # Newer mem0 requires filters={"user_id": ...}; older took user_id top-level.
+        try:
+            result = mem.get_all(filters={"user_id": patient_id})
+        except (TypeError, ValueError):
+            result = mem.get_all(user_id=patient_id)
     except Exception as exc:
         logger.warning("Mem0 get_all failed for patient {}: {}", patient_id, exc)
         return ""

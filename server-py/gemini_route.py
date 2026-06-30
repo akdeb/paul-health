@@ -14,7 +14,7 @@ from google.genai import types
 from loguru import logger
 
 from audio_codecs import OpusEncoder
-from memory import memory_enabled, remember_fact
+from memory import memory_enabled, remember_fact, remember_onboarding_answer
 from onboarding import get_onboarding_state, mark_onboarding_item_complete
 from session import SessionState, add_conversation, get_device_info
 
@@ -380,6 +380,17 @@ class GeminiDirectRunner:
             ):
                 if not self._mark_next_onboarding_item_complete(str(key)):
                     return
+                # Persist name/important_people/interests to long-term memory
+                # deterministically (off the audio path) -- don't rely on the
+                # model calling the remember tool. No-ops for non-memory keys.
+                asyncio.create_task(
+                    asyncio.to_thread(
+                        remember_onboarding_answer,
+                        self._session.user,
+                        str(key),
+                        user_transcript,
+                    )
+                )
                 continue
 
             return
