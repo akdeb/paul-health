@@ -22,7 +22,7 @@ const sidebarNavItems: SidebarNavItem[] = [
     {
         title: "Home",
         href: "/home",
-        icon: <Home size={ICON_SIZE} fill="currentColor" />,
+        icon: <Home size={ICON_SIZE} />,
     },
     {
         title: "Care Plan",
