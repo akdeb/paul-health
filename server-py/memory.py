@@ -18,7 +18,7 @@ from __future__ import annotations
 
 import os
 from typing import Any
-from urllib.parse import urlparse
+from urllib.parse import unquote, urlparse
 
 from loguru import logger
 
@@ -26,35 +26,41 @@ _memory: Any = None
 _init_attempted = False
 
 
-def _resolve_pg_params() -> dict[str, Any] | None:
-    """Build Postgres connection params for pgvector.
+# Supabase IPv4 session pooler for this project. Region-specific (aws-1-eu-north-1),
+# so it can't be derived from SUPABASE_URL -- pinned here. It's a public endpoint,
+# not a secret; the only secret (the DB password) stays in SUPABASE_DB_PASSWORD.
+_SUPABASE_POOLER_HOST = "aws-1-eu-north-1.pooler.supabase.com"
+_SUPABASE_POOLER_PORT = 5432
 
-    Preferred: a full `SUPABASE_DB_URL`. Otherwise derive the direct DB host from
-    the existing `SUPABASE_URL` + a `SUPABASE_DB_PASSWORD` (the database password,
-    NOT the anon/service API key -- those can't open a Postgres connection).
+
+def _resolve_pg_params() -> dict[str, Any] | None:
+    """Build pgvector connection params.
+
+    Default: pin the IPv4 session-pooler host and read only the password from
+    SUPABASE_DB_PASSWORD. SUPABASE_DB_URL, if set, overrides everything.
     """
     db_url = os.getenv("SUPABASE_DB_URL")
     if db_url:
         p = urlparse(db_url)
         return {
             "dbname": p.path.lstrip("/") or "postgres",
-            "user": p.username or "postgres",
-            "password": p.password,
+            "user": unquote(p.username) if p.username else "postgres",
+            "password": unquote(p.password) if p.password else None,
             "host": p.hostname,
             "port": p.port or 5432,
         }
 
+    password = os.getenv("SUPABASE_DB_PASSWORD")
     supabase_url = os.getenv("SUPABASE_URL")
-    db_password = os.getenv("SUPABASE_DB_PASSWORD")
-    if supabase_url and db_password:
+    if password and supabase_url:
         ref = (urlparse(supabase_url).hostname or "").split(".")[0]
         if ref:
             return {
                 "dbname": "postgres",
-                "user": "postgres",
-                "password": db_password,
-                "host": f"db.{ref}.supabase.co",
-                "port": 5432,
+                "user": f"postgres.{ref}",  # pooler requires postgres.<ref>
+                "password": password,
+                "host": _SUPABASE_POOLER_HOST,
+                "port": _SUPABASE_POOLER_PORT,
             }
 
     return None
@@ -63,10 +69,7 @@ def _resolve_pg_params() -> dict[str, Any] | None:
 def _build_memory() -> Any:
     pg = _resolve_pg_params()
     if not pg:
-        logger.warning(
-            "Patient memory disabled: set SUPABASE_DB_PASSWORD (with SUPABASE_URL) "
-            "or a full SUPABASE_DB_URL."
-        )
+        logger.warning("SUPABASE_DB_PASSWORD not set; patient memory disabled.")
         return None
 
     api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
