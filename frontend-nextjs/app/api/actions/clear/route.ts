@@ -46,5 +46,14 @@ export async function DELETE() {
     }
   }
 
+  // Also wipe the patient's long-term memory (Mem0/pgvector). The DB function
+  // derives the patient from the authenticated user, so no patient id is trusted
+  // from the client. Non-fatal: if memory was never enabled (function/table
+  // absent) we still consider history cleared.
+  const { error: memoryError } = await supabase.rpc("clear_my_patient_memories");
+  if (memoryError) {
+    console.error("Failed to clear patient memories:", memoryError.message);
+  }
+
   return NextResponse.json({ success: true });
 }
