@@ -95,8 +95,10 @@ def _build_memory() -> Any:
         },
         "embedder": {
             "provider": "gemini",
-            # text-embedding-004 -> 768 dims; must match the pgvector column width.
-            "config": {"model": "models/text-embedding-004"},
+            # text-embedding-004 was deprecated/removed. gemini-embedding-001
+            # defaults to 3072 dims; pin to 768 (MRL truncation) to match the
+            # pgvector column width below.
+            "config": {"model": "models/gemini-embedding-001", "embedding_dims": 768},
         },
         "vector_store": {
             "provider": "pgvector",
